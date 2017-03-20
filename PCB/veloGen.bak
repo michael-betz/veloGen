@@ -1,4 +1,398 @@
 EESchema Schematic File Version 2
-EELAYER 25 0
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:myStuff
+EELAYER 26 0
 EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L CONN_01X02 J?
+U 1 1 58CD9C31
+P 2300 1550
+F 0 "J?" V 2150 1450 50  0000 R CNN
+F 1 "Gen. IN" V 2000 1700 50  0000 R CNN
+F 2 "" H 2300 1550 50  0001 C CNN
+F 3 "" H 2300 1550 50  0001 C CNN
+	1    2300 1550
+	0    -1   -1   0   
+$EndComp
+$Comp
+L D_Schottky D?
+U 1 1 58CDA218
+P 2000 1350
+F 0 "D?" V 2000 1429 50  0000 L CNN
+F 1 "D_Schottky" V 2045 1429 50  0001 L CNN
+F 2 "" H 2000 1350 50  0001 C CNN
+F 3 "" H 2000 1350 50  0001 C CNN
+	1    2000 1350
+	0    1    1    0   
+$EndComp
+$Comp
+L D_Schottky D?
+U 1 1 58CDA413
+P 2600 1350
+F 0 "D?" V 2600 1429 50  0000 L CNN
+F 1 "D_Schottky" V 2645 1429 50  0001 L CNN
+F 2 "" H 2600 1350 50  0001 C CNN
+F 3 "" H 2600 1350 50  0001 C CNN
+	1    2600 1350
+	0    1    1    0   
+$EndComp
+$Comp
+L D_Schottky D?
+U 1 1 58CDA4A3
+P 2000 2000
+F 0 "D?" V 2000 2079 50  0000 L CNN
+F 1 "D_Schottky" V 2045 2079 50  0001 L CNN
+F 2 "" H 2000 2000 50  0001 C CNN
+F 3 "" H 2000 2000 50  0001 C CNN
+	1    2000 2000
+	0    1    1    0   
+$EndComp
+$Comp
+L D_Schottky D?
+U 1 1 58CDA4A9
+P 2600 2000
+F 0 "D?" V 2600 2079 50  0000 L CNN
+F 1 "D_Schottky" V 2645 2079 50  0001 L CNN
+F 2 "" H 2600 2000 50  0001 C CNN
+F 3 "" H 2600 2000 50  0001 C CNN
+	1    2600 2000
+	0    1    1    0   
+$EndComp
+$Comp
+L C C?
+U 1 1 58CDA678
+P 2950 1700
+F 0 "C?" H 3065 1746 50  0000 L CNN
+F 1 "10u" H 3065 1655 50  0000 L CNN
+F 2 "" H 2988 1550 50  0001 C CNN
+F 3 "" H 2950 1700 50  0001 C CNN
+	1    2950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L R_Shunt R?
+U 1 1 58CDA790
+P 3250 1150
+F 0 "R?" V 3118 1150 50  0000 C CNN
+F 1 "R005" V 3027 1150 50  0000 C CNN
+F 2 "" V 3180 1150 50  0001 C CNN
+F 3 "" H 3250 1150 50  0001 C CNN
+	1    3250 1150
+	0    -1   -1   0   
+$EndComp
+$Comp
+L L L?
+U 1 1 58CDB258
+P 4950 1150
+F 0 "L?" V 5140 1150 50  0000 C CNN
+F 1 "L" V 5049 1150 50  0000 C CNN
+F 2 "" H 4950 1150 50  0001 C CNN
+F 3 "" H 4950 1150 50  0001 C CNN
+	1    4950 1150
+	0    -1   -1   0   
+$EndComp
+$Comp
+L BSS138 Q?
+U 1 1 58CDB63E
+P 3700 1950
+F 0 "Q?" H 3905 1996 50  0000 L CNN
+F 1 "BSS138" H 3905 1905 50  0000 L CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 3900 1875 50  0001 L CIN
+F 3 "" H 3700 1950 50  0001 L CNN
+	1    3700 1950
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R?
+U 1 1 58CDB77C
+P 3800 1350
+F 0 "R?" H 3870 1396 50  0000 L CNN
+F 1 "R" H 3870 1305 50  0000 L CNN
+F 2 "" V 3730 1350 50  0001 C CNN
+F 3 "" H 3800 1350 50  0001 C CNN
+	1    3800 1350
+	1    0    0    -1  
+$EndComp
+$Comp
+L FDS9934C Q?
+U 2 1 58CDADBA
+P 4050 1250
+F 0 "Q?" V 4475 1250 50  0000 C CNN
+F 1 "FDS9934C" V 4384 1250 50  0000 C CNN
+F 2 "Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm" H 4300 1175 50  0001 L CNN
+F 3 "" H 4300 1100 50  0001 L CNN
+	2    4050 1250
+	0    1    -1   0   
+$EndComp
+Wire Wire Line
+	2250 1750 2000 1750
+Wire Wire Line
+	2000 1500 2000 1850
+Connection ~ 2000 1750
+Wire Wire Line
+	2350 1750 2600 1750
+Wire Wire Line
+	2600 1500 2600 1850
+Connection ~ 2600 1750
+Wire Wire Line
+	2000 1200 2000 1150
+Wire Wire Line
+	2000 1150 3050 1150
+Wire Wire Line
+	2600 1150 2600 1200
+Wire Wire Line
+	2000 2150 2000 2200
+Wire Wire Line
+	2000 2200 5900 2200
+Wire Wire Line
+	2600 2200 2600 2150
+Wire Wire Line
+	2950 1150 2950 1550
+Connection ~ 2600 1150
+Wire Wire Line
+	2950 2200 2950 1850
+Connection ~ 2600 2200
+Connection ~ 2950 1150
+Wire Wire Line
+	4250 1150 4800 1150
+Wire Wire Line
+	4650 2200 4650 1900
+Connection ~ 2950 2200
+Wire Wire Line
+	3800 1200 3800 1150
+Wire Wire Line
+	3800 1500 3800 1750
+Wire Wire Line
+	3800 2150 3800 2200
+Connection ~ 3800 2200
+Wire Wire Line
+	3450 1150 3850 1150
+Wire Wire Line
+	4050 1450 4050 1550
+Wire Wire Line
+	4050 1550 3800 1550
+Connection ~ 3800 1550
+Wire Wire Line
+	4250 1050 4300 1050
+Wire Wire Line
+	4300 1050 4300 1150
+Connection ~ 4300 1150
+Wire Wire Line
+	4650 1150 4650 1600
+Connection ~ 4650 1150
+Connection ~ 3800 1150
+$Comp
+L D_Schottky D?
+U 1 1 58CDC2E6
+P 4650 1750
+F 0 "D?" V 4650 1829 50  0000 L CNN
+F 1 "D_Schottky" V 4695 1829 50  0001 L CNN
+F 2 "" H 4650 1750 50  0001 C CNN
+F 3 "" H 4650 1750 50  0001 C CNN
+	1    4650 1750
+	0    1    1    0   
+$EndComp
+$Comp
+L C C?
+U 1 1 58CDC49E
+P 5250 1650
+F 0 "C?" H 5365 1696 50  0000 L CNN
+F 1 "10u" H 5365 1605 50  0000 L CNN
+F 2 "" H 5288 1500 50  0001 C CNN
+F 3 "" H 5250 1650 50  0001 C CNN
+	1    5250 1650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5250 1500 5250 1150
+Wire Wire Line
+	5100 1150 7000 1150
+Wire Wire Line
+	5250 2200 5250 1800
+Connection ~ 4650 2200
+$Comp
+L CONN_01X02 J?
+U 1 1 58CDC990
+P 6150 1850
+F 0 "J?" V 6000 1750 50  0000 R CNN
+F 1 "Batt" V 5850 1900 50  0000 R CNN
+F 2 "" H 6150 1850 50  0001 C CNN
+F 3 "" H 6150 1850 50  0001 C CNN
+	1    6150 1850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5950 1900 5900 1900
+Wire Wire Line
+	5900 1900 5900 2250
+Connection ~ 5250 2200
+$Comp
+L R_Shunt R?
+U 1 1 58CDCDCD
+P 5900 1450
+F 0 "R?" H 5812 1496 50  0000 R CNN
+F 1 "R005" H 5812 1405 50  0000 R CNN
+F 2 "" V 5830 1450 50  0001 C CNN
+F 3 "" H 5900 1450 50  0001 C CNN
+	1    5900 1450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5950 1800 5900 1800
+Wire Wire Line
+	5900 1800 5900 1650
+Wire Wire Line
+	5900 1150 5900 1250
+Connection ~ 5250 1150
+Connection ~ 5900 1150
+$Comp
+L MAX8881 U?
+U 1 1 58CDD6F1
+P 7350 1250
+F 0 "U?" H 7350 1575 50  0000 C CNN
+F 1 "MAX8881" H 7350 1484 50  0000 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23-6_Handsoldering" H 7350 1600 50  0001 C CIN
+F 3 "" H 7350 1250 50  0000 C CNN
+	1    7350 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C?
+U 1 1 58CDD8CD
+P 6500 1350
+F 0 "C?" H 6615 1396 50  0000 L CNN
+F 1 "1u" H 6615 1305 50  0000 L CNN
+F 2 "" H 6538 1200 50  0001 C CNN
+F 3 "" H 6500 1350 50  0001 C CNN
+	1    6500 1350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6500 1200 6500 1150
+Connection ~ 6500 1150
+$Comp
+L GND #PWR?
+U 1 1 58CDDA95
+P 5900 2250
+F 0 "#PWR?" H 5900 2000 50  0001 C CNN
+F 1 "GND" H 5905 2077 50  0000 C CNN
+F 2 "" H 5900 2250 50  0001 C CNN
+F 3 "" H 5900 2250 50  0001 C CNN
+	1    5900 2250
+	1    0    0    -1  
+$EndComp
+Connection ~ 5900 2200
+$Comp
+L GND #PWR?
+U 1 1 58CDDD0B
+P 6500 1550
+F 0 "#PWR?" H 6500 1300 50  0001 C CNN
+F 1 "GND" H 6505 1377 50  0000 C CNN
+F 2 "" H 6500 1550 50  0001 C CNN
+F 3 "" H 6500 1550 50  0001 C CNN
+	1    6500 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6500 1550 6500 1500
+$Comp
+L GND #PWR?
+U 1 1 58CDDF03
+P 6950 1300
+F 0 "#PWR?" H 6950 1050 50  0001 C CNN
+F 1 "GND" H 6900 1350 50  0000 C CNN
+F 2 "" H 6950 1300 50  0001 C CNN
+F 3 "" H 6950 1300 50  0001 C CNN
+	1    6950 1300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6950 1300 7000 1300
+Wire Wire Line
+	7700 1300 7800 1300
+Wire Wire Line
+	7800 1300 7800 800 
+Wire Wire Line
+	7800 800  6950 800 
+Wire Wire Line
+	6950 800  6950 1150
+Connection ~ 6950 1150
+NoConn ~ 7700 1150
+$Comp
+L esp8266_esp-02 U?
+U 1 1 58CDE97E
+P 2250 4550
+F 0 "U?" H 2350 5387 60  0000 C CNN
+F 1 "esp8266_esp-02" H 2350 5281 60  0000 C CNN
+F 2 "" H 2250 4550 60  0001 C CNN
+F 3 "" H 2250 4550 60  0001 C CNN
+	1    2250 4550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7000 1450 6950 1450
+Wire Wire Line
+	6950 1450 6950 1600
+Wire Wire Line
+	6950 1600 8600 1600
+Wire Wire Line
+	7700 1450 7700 1550
+Wire Wire Line
+	7700 1550 8450 1550
+Wire Wire Line
+	8450 1550 8450 1600
+Connection ~ 8450 1600
+$Comp
+L +3V3 #PWR?
+U 1 1 58CDF05C
+P 8600 1550
+F 0 "#PWR?" H 8600 1400 50  0001 C CNN
+F 1 "+3V3" H 8615 1723 50  0000 C CNN
+F 2 "" H 8600 1550 50  0001 C CNN
+F 3 "" H 8600 1550 50  0001 C CNN
+	1    8600 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8600 1600 8600 1550
 $EndSCHEMATC
