@@ -31,6 +31,7 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
  * Smoothing cap (10 uF?)
  * 2 x current sensing shunt (Igenerator, Ibattery) + 2 x TS1101
  * IN system programming pins
+ * P - channel mosfet to switch off external power on fault (low battery / overcurrent)
  
 ## 3D printed case
 
