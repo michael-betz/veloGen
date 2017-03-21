@@ -25,7 +25,7 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
  * WROOM-32
  * Buck inductor
  * Buck Schottky: STPS3L40UF
- * High side mosfet driver: LTC4440 in SOT-23
+ * High side mosfet driver: LTC4440-5 in SOT-23
  * High side Mosfet: STL6N3LLH6
  * 4 x schottky diode for bridge rectifier
  * Smoothing cap (10 uF?)

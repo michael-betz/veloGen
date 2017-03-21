@@ -1,4 +1,4 @@
-update=Sam 18 Mär 2017 14:45:04 PDT
+update=Die 21 Mär 2017 00:45:25 PDT
 version=1
 last_client=kicad
 [pcbnew]
@@ -59,3 +59,13 @@ LibName27=atmel
 LibName28=contrib
 LibName29=valves
 LibName30=/home/michael/Google Drive/kicad_wsp_private/lib/myStuff
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=./
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceAjustPassiveValues=0
+LabSize=60
+ERC_TestSimilarLabels=1
