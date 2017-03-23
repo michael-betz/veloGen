@@ -51,7 +51,7 @@ U 1 1 58CD9C31
 P 2550 2900
 F 0 "J2" V 2400 2800 50  0000 R CNN
 F 1 "Gen. IN" V 2250 3050 50  0000 R CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch1.27mm" H 2550 2900 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 2550 2900 50  0001 C CNN
 F 3 "" H 2550 2900 50  0001 C CNN
 	1    2550 2900
 	0    -1   -1   0   
@@ -101,36 +101,14 @@ F 3 "" H 2850 3350 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R_Shunt R3
-U 1 1 58CDA790
-P 3300 2500
-F 0 "R3" V 3168 2500 50  0000 C CNN
-F 1 "R005" V 3077 2500 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" V 3230 2500 50  0001 C CNN
-F 3 "" H 3300 2500 50  0001 C CNN
-	1    3300 2500
-	0    -1   -1   0   
-$EndComp
-$Comp
 L CONN_01X02 J3
 U 1 1 58CDC990
 P 6750 3200
 F 0 "J3" H 6900 3050 50  0000 R CNN
 F 1 "Batt" H 6950 2950 50  0000 R CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch1.27mm" H 6750 3200 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 6750 3200 50  0001 C CNN
 F 3 "" H 6750 3200 50  0001 C CNN
 	1    6750 3200
-	1    0    0    -1  
-$EndComp
-$Comp
-L R_Shunt R8
-U 1 1 58CDCDCD
-P 6550 2800
-F 0 "R8" H 6462 2846 50  0000 R CNN
-F 1 "R005" H 6462 2755 50  0000 R CNN
-F 2 "Resistors_SMD:R_0805" V 6480 2800 50  0001 C CNN
-F 3 "" H 6550 2800 50  0001 C CNN
-	1    6550 2800
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -534,7 +512,7 @@ U 1 1 58D25424
 P 8500 5300
 F 0 "P2" H 8650 5100 50  0000 C CNN
 F 1 "CONN_01X04" H 8600 5000 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch1.27mm" H 8500 5300 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 8500 5300 50  0001 C CNN
 F 3 "" H 8500 5300 50  0000 C CNN
 	1    8500 5300
 	-1   0    0    1   
@@ -669,7 +647,7 @@ U 1 1 58D2B56B
 P 1500 5350
 F 0 "J1" H 1419 5075 50  0000 C CNN
 F 1 "CONN_01X02" H 1419 5166 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch1.27mm" H 1500 5350 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 1500 5350 50  0001 C CNN
 F 3 "" H 1500 5350 50  0001 C CNN
 	1    1500 5350
 	-1   0    0    1   
@@ -736,7 +714,7 @@ Wire Wire Line
 	9650 4350 9150 4350
 Connection ~ 6400 3550
 Wire Wire Line
-	6400 3500 6400 3550
+	6400 3550 6400 3500
 Connection ~ 6400 2500
 Wire Wire Line
 	6400 2450 6400 2500
@@ -747,7 +725,7 @@ Wire Wire Line
 Wire Wire Line
 	8750 5350 8700 5350
 Wire Wire Line
-	2250 2500 3100 2500
+	2250 2500 3150 2500
 Wire Wire Line
 	4900 5800 5550 5800
 Wire Wire Line
@@ -830,24 +808,24 @@ Connection ~ 8800 2500
 Wire Wire Line
 	8800 2500 8800 3900
 Wire Wire Line
-	10400 2750 10400 2500
+	10400 2500 10400 2750
 Connection ~ 9500 2500
 Wire Wire Line
 	9500 2600 9500 2500
 Wire Wire Line
 	9600 2600 9500 2600
 Wire Wire Line
-	9500 2750 9500 3550
+	9500 3550 9500 2750
 Wire Wire Line
-	9600 2750 9500 2750
+	9500 2750 9600 2750
 Wire Wire Line
 	9600 2900 9600 3000
 Connection ~ 9250 3550
 Wire Wire Line
-	9250 3300 9250 3550
+	9250 3550 9250 3300
 Connection ~ 9500 3550
 Wire Wire Line
-	3500 2500 4550 2500
+	3450 2500 4550 2500
 Wire Wire Line
 	4050 2650 4550 2650
 Connection ~ 3600 3550
@@ -863,9 +841,9 @@ Connection ~ 8100 2900
 Wire Wire Line
 	8100 3000 8100 2900
 Wire Wire Line
-	3850 1350 3400 1350
+	3850 1350 3350 1350
 Wire Wire Line
-	3200 1150 3850 1150
+	3250 1150 3850 1150
 Connection ~ 4800 1350
 Wire Wire Line
 	4800 1450 4800 1350
@@ -878,22 +856,20 @@ Wire Wire Line
 	4900 5000 5050 5000
 Connection ~ 2950 5100
 Wire Wire Line
-	2950 5100 2950 5100
+	2900 5100 3000 5100
 Connection ~ 2550 5100
 Wire Wire Line
 	2550 5050 2550 5200
 Wire Wire Line
 	2550 5200 3000 5200
 Wire Wire Line
-	2900 5100 3000 5100
-Wire Wire Line
 	2500 5100 2600 5100
 Connection ~ 5650 3550
 Wire Wire Line
-	5650 3400 5650 3550
+	5650 3550 5650 3400
 Connection ~ 5850 3550
 Wire Wire Line
-	5850 3400 5850 3550
+	5850 3550 5850 3400
 Connection ~ 5850 2500
 Wire Wire Line
 	5850 2700 5850 2500
@@ -919,11 +895,11 @@ Wire Wire Line
 	4800 1800 4800 1750
 Connection ~ 8100 3550
 Wire Wire Line
-	8100 3300 8100 3550
+	8100 3550 8100 3300
 Wire Wire Line
-	3200 2350 3200 1150
+	3250 1150 3250 2400
 Wire Wire Line
-	3400 1350 3400 2350
+	3350 1350 3350 2400
 Wire Wire Line
 	3800 1800 3800 1750
 Wire Wire Line
@@ -950,26 +926,26 @@ Wire Wire Line
 Wire Wire Line
 	7050 2800 7150 2800
 Wire Wire Line
-	7150 2900 6700 2900
+	6650 2900 7150 2900
 Wire Wire Line
-	7150 2700 6700 2700
+	6650 2700 7150 2700
 Wire Wire Line
 	9600 3000 10600 3000
 Connection ~ 9250 2500
 Wire Wire Line
 	9250 3000 9250 2500
 Wire Wire Line
-	10300 2750 10400 2750
+	10400 2750 10300 2750
 Connection ~ 6550 3550
 Connection ~ 6550 2500
 Wire Wire Line
-	6550 2450 6550 2600
+	6550 2450 6550 2650
 Wire Wire Line
-	6550 3000 6550 3150
+	6550 2950 6550 3150
 Wire Wire Line
 	6550 3250 6550 3600
 Wire Wire Line
-	10400 2500 5150 2500
+	5150 2500 10400 2500
 Connection ~ 2850 3550
 Connection ~ 2850 2500
 Wire Wire Line
@@ -1014,4 +990,46 @@ F 3 "" H 9850 4350 50  0001 L CNN
 	1    9850 4350
 	1    0    0    -1  
 $EndComp
+$Comp
+L R R3
+U 1 1 58D38E14
+P 3300 2500
+F 0 "R3" H 3370 2546 50  0000 L CNN
+F 1 "R050" H 3370 2455 50  0000 L CNN
+F 2 "Resistors_SMD:R_0805" V 3230 2500 50  0001 C CNN
+F 3 "" H 3300 2500 50  0001 C CNN
+	1    3300 2500
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	3250 2400 3100 2400
+Wire Wire Line
+	3100 2400 3100 2500
+Connection ~ 3100 2500
+Wire Wire Line
+	3350 2400 3500 2400
+Wire Wire Line
+	3500 2400 3500 2500
+Connection ~ 3500 2500
+$Comp
+L R R8
+U 1 1 58D39C69
+P 6550 2800
+F 0 "R8" H 6620 2846 50  0000 L CNN
+F 1 "R050" H 6620 2755 50  0000 L CNN
+F 2 "Resistors_SMD:R_0805" V 6480 2800 50  0001 C CNN
+F 3 "" H 6550 2800 50  0001 C CNN
+	1    6550 2800
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	6650 2900 6650 3000
+Wire Wire Line
+	6650 3000 6550 3000
+Connection ~ 6550 3000
+Wire Wire Line
+	6650 2700 6650 2600
+Wire Wire Line
+	6650 2600 6550 2600
+Connection ~ 6550 2600
 $EndSCHEMATC
