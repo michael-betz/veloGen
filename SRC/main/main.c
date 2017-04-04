@@ -79,6 +79,7 @@ static int udpDebugPrintf( const char *format, va_list arg ){
 	return charLen;
 }
 
+// Display UDP log with netcat -ul 4711
 static void udp_debug_init(void *pvParameters)
 {
 	struct hostent *hp;     /* host information */
@@ -127,13 +128,16 @@ static void adc_monitor_task(void *pvParameters)
         }
         adcVal /= 32;
         ESP_LOGI( TAG, "%4d  v_batt = %d mV (%d)", boot_count++, ADC_GET_VBATT(adcVal), adcVal );
-        vTaskDelay( 5000 );
+
+        vTaskDelay( 2500 );
 //        ESP_ERROR_CHECK( esp_deep_sleep_enable_timer_wakeup( 10 * 1000000 ) );
 //        esp_deep_sleep_start();
     }
 }
 
+// Seems like we get 9 pulses per revolution
 #define GEN_GPIO GPIO_NUM_5
+#define LED_GPIO GPIO_NUM_12
 
 static void gen_monitor_task(void *pvParameters)
 {
@@ -145,6 +149,7 @@ static void gen_monitor_task(void *pvParameters)
     	temp = gpio_get_level(GEN_GPIO);
     	if(  temp != val ){
     		val = temp;
+    		gpio_set_level( GPIO_NUM_12, temp );
 	        ESP_LOGI( TAG, "%d", temp );
     	}
         vTaskDelay( 2 );
@@ -154,6 +159,18 @@ static void gen_monitor_task(void *pvParameters)
 void app_main(void)
 {
 	ESP_ERROR_CHECK( nvs_flash_init() );
+	// Init LED port
+	gpio_pad_select_gpio( GPIO_NUM_12 );
+	ESP_ERROR_CHECK( gpio_set_direction( GPIO_NUM_12, GPIO_MODE_OUTPUT ) );
+	// INit ticker port
+	ESP_ERROR_CHECK( gpio_set_direction(GEN_GPIO, GPIO_MODE_INPUT) );
+	ESP_ERROR_CHECK( gpio_set_pull_mode(GEN_GPIO, GPIO_FLOATING)   );
+//	while(1){
+//		uint8_t temp = gpio_get_level( GEN_GPIO );
+//		gpio_set_level( LED_GPIO, temp );
+//		vTaskDelay( 1 );
+//	}
+
     tcpip_adapter_init();
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
