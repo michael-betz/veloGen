@@ -4,10 +4,20 @@
 #include "lwip/netdb.h"
 #include "lwip/dns.h"
 #include "esp_wifi.h"
+#include "esp_system.h"
+#include "esp_event.h"
+#include "esp_event_loop.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+#include <string.h>
+#include <stdarg.h>
+#include "debugUdp.h"
 
-#define UDP_DEBUG_SERVER "kimchi"
-#define UDP_DEBUG_PORT    4711
+static const char* TAG = __FILE__;
 
+/* FreeRTOS event group to signal when we are connected & ready to make a request */
+EventGroupHandle_t wifi_event_group;
 
 int g_Socket = 0xDEAD;
 struct sockaddr_in g_servaddr;
@@ -25,7 +35,7 @@ static int udpDebugPrintf( const char *format, va_list arg ){
     return charLen;
 }
 
-static void udp_debug_init(void *pvParameters)
+void udp_debug_init(void *pvParameters)
 {
     struct hostent *hp;     /* host information */
     // Wait for active IP connection
@@ -58,14 +68,6 @@ static void udp_debug_init(void *pvParameters)
 
     vTaskDelete(NULL);
 }
-
-/* FreeRTOS event group to signal when we are connected & ready to make a request */
-EventGroupHandle_t wifi_event_group;
-
-/* The event group allows multiple bits for each event,
-   but we only care about one event - are we connected
-   to the AP with an IP? */
-#define CONNECTED_BIT BIT0
 
 esp_err_t event_handler(void *ctx, system_event_t *event)
 {
