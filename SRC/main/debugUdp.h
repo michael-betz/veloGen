@@ -15,6 +15,7 @@
    to the AP with an IP? */
 #define CONNECTED_BIT BIT0
 
+void wifiInit();
 void udp_debug_init(void *pvParameters);
 
 
