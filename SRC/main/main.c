@@ -64,16 +64,15 @@ static void adc_monitor_task(void *pvParameters)
 static void pwmFun_task(void *pvParameters)
 {
 	initPwm();
-	uint16_t pwmVal = 0;
+	uint16_t pwmValue = 40;
+//	setPwm( 50 );
 	while(1){
-		setPwm( pwmVal );
-		pwmVal += 1;
-		if( pwmVal >= 1024 ){
-			pwmVal = 0;
+		setPwm( pwmValue++ );
+//		if( pwmValue > (BUCK_PWM_MAX-13) ){
+		if( pwmValue > 60 ){
+			pwmValue = 40;
 		}
-//		ESP_ERROR_CHECK( esp_deep_sleep_enable_timer_wakeup( 1 * 1000000 ) );
-//		esp_deep_sleep_start();
-		vTaskDelay( 10 );
+		vTaskDelay( 300 );
 	}
 }
 
@@ -84,6 +83,10 @@ void app_main(void)
 	// Init LED port
 	gpio_pad_select_gpio( LED_GPIO );
 	ESP_ERROR_CHECK( gpio_set_direction( LED_GPIO, GPIO_MODE_OUTPUT ) );
+	// Init BUCK port
+	gpio_pad_select_gpio( BUCK_GPIO );
+	ESP_ERROR_CHECK( gpio_set_direction( BUCK_GPIO, GPIO_MODE_OUTPUT ) );
+
 	xTaskCreate(&pwmFun_task,      "pwmFun_task",      2048, NULL, 5, NULL);
 
 //	while(1){

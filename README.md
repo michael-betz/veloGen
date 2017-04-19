@@ -33,6 +33,10 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
  * IN system programming pins
  * P - channel mosfet to switch off external power on fault (low battery / overcurrent)
  
+### Datasheets
+ * [MCP1630](http://ww1.microchip.com/downloads/en/DeviceDoc/21896b.pdf)
+ * [LiIon app note](http://ww1.microchip.com/downloads/en/DeviceDoc/51555b.pdf)
+ 
 ## 3D printed case
 
  * Mounts with zip ties / verlcro straps on the frame between 2 tubes angeled at 120 deg

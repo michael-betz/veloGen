@@ -11,8 +11,9 @@
 
 
 // Seems like we get 9 pulses per revolution
-#define GEN_GPIO GPIO_NUM_5
-#define LED_GPIO GPIO_NUM_12
+#define GEN_GPIO  GPIO_NUM_5
+#define LED_GPIO  GPIO_NUM_12
+#define BUCK_GPIO GPIO_NUM_4
 
 // ADC (VBatt) calibration constants
 #define ADC_VBATT_CHANNEL    3
