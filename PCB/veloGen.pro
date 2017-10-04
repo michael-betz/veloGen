@@ -1,4 +1,4 @@
-update=Mit 22 Mär 2017 01:46:14 PDT
+update=Mit 04 Okt 2017 00:04:23 PDT
 version=1
 last_client=kicad
 [pcbnew]
@@ -37,7 +37,7 @@ LabSize=60
 ERC_TestSimilarLabels=1
 [eeschema]
 version=1
-LibDir=/home/michael/Google Drive/kicad_wsp_private/lib
+LibDir=../../Google Drive/kicad_wsp_private/lib
 [eeschema/libraries]
 LibName1=veloGen-rescue
 LibName2=power
