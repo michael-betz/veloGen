@@ -1,4 +1,4 @@
-EESchema Schematic File Version 2
+EESchema Schematic File Version 3
 LIBS:veloGen-rescue
 LIBS:power
 LIBS:device
@@ -359,7 +359,6 @@ F 3 "" H 6550 5850 50  0001 C CNN
 $EndComp
 Text Notes 3100 3700 0    60   ~ 0
 30 V --> 1.1 V
-NoConn ~ 3000 6000
 NoConn ~ 3000 6100
 NoConn ~ 3000 6200
 NoConn ~ 3000 6300
@@ -412,7 +411,6 @@ Connection ~ 2850 2500
 Connection ~ 2850 3550
 Wire Wire Line
 	5400 2500 10400 2500
-Connection ~ 7000 2500
 Wire Wire Line
 	10400 2750 10300 2750
 Wire Wire Line
@@ -548,8 +546,6 @@ Wire Wire Line
 Wire Wire Line
 	6350 4750 2150 4750
 Connection ~ 2150 5100
-Wire Wire Line
-	7000 2450 7000 3150
 NoConn ~ 3000 5900
 NoConn ~ 3000 5800
 Wire Wire Line
@@ -570,18 +566,17 @@ sepicImax
 $Comp
 L CONN_01X02 J3
 U 1 1 59D6FC9E
-P 7200 3200
-F 0 "J3" V 7050 3100 50  0000 R CNN
-F 1 "Bat" V 6900 3350 50  0000 R CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 7200 3200 50  0001 C CNN
-F 3 "" H 7200 3200 50  0001 C CNN
-	1    7200 3200
-	1    0    0    -1  
+P 1350 1800
+F 0 "J3" H 1500 1950 50  0000 R CNN
+F 1 "Bat" H 1350 1950 50  0000 R CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 1350 1800 50  0001 C CNN
+F 3 "" H 1350 1800 50  0001 C CNN
+	1    1350 1800
+	-1   0    0    -1  
 $EndComp
 Wire Wire Line
-	7000 3250 7000 3600
+	1600 1850 1600 1950
 Connection ~ 7000 3550
-NoConn ~ 3000 5600
 NoConn ~ 3000 5700
 Text Label 5100 6200 0    60   ~ 0
 sepicImax
@@ -603,17 +598,14 @@ Wire Wire Line
 $Comp
 L PWR_FLAG #FLG02
 U 1 1 59D79473
-P 7050 3000
-F 0 "#FLG02" H 7050 3075 50  0001 C CNN
-F 1 "PWR_FLAG" V 7050 3128 50  0000 L CNN
-F 2 "" H 7050 3000 50  0001 C CNN
-F 3 "" H 7050 3000 50  0001 C CNN
-	1    7050 3000
-	0    1    1    0   
+P 1550 1300
+F 0 "#FLG02" H 1550 1375 50  0001 C CNN
+F 1 "PWR_FLAG" V 1550 1428 50  0000 L CNN
+F 2 "" H 1550 1300 50  0001 C CNN
+F 3 "" H 1550 1300 50  0001 C CNN
+	1    1550 1300
+	0    -1   -1   0   
 $EndComp
-Wire Wire Line
-	7050 3000 7000 3000
-Connection ~ 7000 3000
 Text Label 5100 6400 0    60   ~ 0
 progFlag
 $Comp
@@ -660,4 +652,157 @@ Wire Wire Line
 	6600 5800 6550 5800
 Wire Wire Line
 	6550 5800 6550 5850
+$Comp
+L TS1101 U2
+U 1 1 59D5A882
+P 2850 1450
+F 0 "U2" H 3225 1113 60  0000 C CNN
+F 1 "TS1101" H 3225 1219 60  0000 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23-6_Handsoldering" H 3250 1050 60  0001 C CNN
+F 3 "https://www.silabs.com/documents/public/data-sheets/TS1100-01-02-03.pdf" H 4000 1200 60  0001 C CNN
+	1    2850 1450
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	7000 2450 7000 2500
+Connection ~ 7000 2500
+Wire Wire Line
+	7000 3600 7000 3550
+$Comp
+L GND #PWR011
+U 1 1 59D5B1BD
+P 1600 1950
+F 0 "#PWR011" H 1600 1700 50  0001 C CNN
+F 1 "GND" H 1605 1777 50  0000 C CNN
+F 2 "" H 1600 1950 50  0001 C CNN
+F 3 "" H 1600 1950 50  0001 C CNN
+	1    1600 1950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1550 1850 1600 1850
+$Comp
+L R R9
+U 1 1 59D5BCBC
+P 1600 1550
+F 0 "R9" H 1200 1600 50  0000 L CNN
+F 1 "100m" H 1350 1600 50  0000 L CNN
+F 2 "Resistors_SMD:R_1206" V 1530 1550 50  0001 C CNN
+F 3 "" H 1600 1550 50  0001 C CNN
+	1    1600 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1550 1750 2000 1750
+Wire Wire Line
+	1600 1750 1600 1700
+Wire Wire Line
+	2050 1650 2000 1650
+Wire Wire Line
+	2000 1650 2000 1750
+Connection ~ 1600 1750
+Wire Wire Line
+	1600 1250 1600 1400
+Wire Wire Line
+	1600 1350 2000 1350
+Wire Wire Line
+	2000 1350 2000 1450
+Wire Wire Line
+	2000 1450 2050 1450
+Wire Wire Line
+	1600 1300 1550 1300
+Connection ~ 1600 1350
+$Comp
+L +BATT #PWR02
+U 1 1 59D5CA8C
+P 1600 1250
+F 0 "#PWR02" H 1600 1100 50  0001 C CNN
+F 1 "+BATT" H 1750 1350 50  0000 C CNN
+F 2 "" H 1600 1250 50  0001 C CNN
+F 3 "" H 1600 1250 50  0001 C CNN
+	1    1600 1250
+	1    0    0    -1  
+$EndComp
+Connection ~ 1600 1300
+Wire Wire Line
+	2000 1550 2050 1550
+$Comp
+L GND #PWR019
+U 1 1 59D5D9C8
+P 2950 1700
+F 0 "#PWR019" H 2950 1450 50  0001 C CNN
+F 1 "GND" H 2955 1527 50  0000 C CNN
+F 2 "" H 2950 1700 50  0001 C CNN
+F 3 "" H 2950 1700 50  0001 C CNN
+	1    2950 1700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2900 1650 2950 1650
+Wire Wire Line
+	2950 1650 2950 1700
+Wire Wire Line
+	2900 1450 3400 1450
+Wire Wire Line
+	2900 1550 3400 1550
+Wire Wire Line
+	3000 5600 2500 5600
+Text Label 2500 5600 0    60   ~ 0
+IBatt
+Wire Wire Line
+	3000 6000 2500 6000
+Text Label 2500 6000 0    60   ~ 0
+IBattSign
+Text Label 2950 1450 0    60   ~ 0
+IBatt
+Text Label 2950 1550 0    60   ~ 0
+IBattSign
+$Comp
+L C C7
+U 1 1 59D5F134
+P 3850 1500
+F 0 "C7" H 3700 1600 50  0000 L CNN
+F 1 "470n" H 3900 1600 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 3888 1350 50  0001 C CNN
+F 3 "" H 3850 1500 50  0001 C CNN
+	1    3850 1500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3850 1300 3850 1350
+$Comp
+L GND #PWR021
+U 1 1 59D5F40C
+P 3850 1700
+F 0 "#PWR021" H 3850 1450 50  0001 C CNN
+F 1 "GND" H 3855 1527 50  0000 C CNN
+F 2 "" H 3850 1700 50  0001 C CNN
+F 3 "" H 3850 1700 50  0001 C CNN
+	1    3850 1700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3850 1700 3850 1650
+$Comp
+L +BATT #PWR?
+U 1 1 59D607AF
+P 2000 1550
+F 0 "#PWR?" H 2000 1400 50  0001 C CNN
+F 1 "+BATT" V 2100 1700 50  0000 C CNN
+F 2 "" H 2000 1550 50  0001 C CNN
+F 3 "" H 2000 1550 50  0001 C CNN
+	1    2000 1550
+	0    -1   -1   0   
+$EndComp
+$Comp
+L +BATT #PWR?
+U 1 1 59D60AAD
+P 3850 1300
+F 0 "#PWR?" H 3850 1150 50  0001 C CNN
+F 1 "+BATT" H 3850 1500 50  0000 C CNN
+F 2 "" H 3850 1300 50  0001 C CNN
+F 3 "" H 3850 1300 50  0001 C CNN
+	1    3850 1300
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
