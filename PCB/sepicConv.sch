@@ -1,4 +1,4 @@
-EESchema Schematic File Version 3
+EESchema Schematic File Version 2
 LIBS:veloGen-rescue
 LIBS:power
 LIBS:device

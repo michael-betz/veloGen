@@ -1,4 +1,4 @@
-update=Mit 04 Okt 2017 19:18:28 PDT
+update=10/6/2017 9:34:13 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -69,4 +69,4 @@ LibName27=opto
 LibName28=atmel
 LibName29=contrib
 LibName30=valves
-LibName31=myStuff
+LibName31=C:/Users/mbetz/Google Drive/kicad_wsp/lib/myStuff
