@@ -1,4 +1,4 @@
-EESchema Schematic File Version 2
+EESchema Schematic File Version 3
 LIBS:veloGen-rescue
 LIBS:power
 LIBS:device
@@ -29,7 +29,6 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
-LIBS:myStuff
 LIBS:veloGen-cache
 EELAYER 26 0
 EELAYER END
@@ -486,7 +485,7 @@ L TS1101 U2
 U 1 1 59D5A882
 P 2850 1650
 F 0 "U2" H 3225 1313 60  0000 C CNN
-F 1 "TS1101" H 3225 1419 60  0000 C CNN
+F 1 "TS1101-100EG6T" H 3225 1419 60  0000 C CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23-6_Handsoldering" H 3250 1250 60  0001 C CNN
 F 3 "https://www.silabs.com/documents/public/data-sheets/TS1100-01-02-03.pdf" H 4000 1400 60  0001 C CNN
 	1    2850 1650
@@ -508,7 +507,7 @@ L R R9
 U 1 1 59D5BCBC
 P 1600 1550
 F 0 "R9" H 1200 1600 50  0000 L CNN
-F 1 "100m" H 1350 1600 50  0000 L CNN
+F 1 "10m" H 1350 1600 50  0000 L CNN
 F 2 "Resistors_SMD:R_1206" V 1530 1550 50  0001 C CNN
 F 3 "" H 1600 1550 50  0001 C CNN
 	1    1600 1550
@@ -852,4 +851,6 @@ Text Label 8750 5400 0    60   ~ 0
 extSda
 Text Label 8750 5600 0    60   ~ 0
 extScl
+Text Notes 750  2450 0    60   ~ 0
+MOsfet mirrored\nProg con mirrored
 $EndSCHEMATC

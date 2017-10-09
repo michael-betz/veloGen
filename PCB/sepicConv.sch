@@ -1,4 +1,4 @@
-EESchema Schematic File Version 2
+EESchema Schematic File Version 3
 LIBS:veloGen-rescue
 LIBS:power
 LIBS:device
@@ -29,7 +29,6 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
-LIBS:myStuff
 LIBS:veloGen-cache
 EELAYER 26 0
 EELAYER END
@@ -2369,7 +2368,7 @@ L C C3
 U 1 1 59D49FB6
 P 3100 2100
 F 0 "C3" H 2950 1900 50  0000 L CNN
-F 1 "47n" H 2950 1800 50  0000 L CNN
+F 1 "2u2" H 2950 1800 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0805" H 3138 1950 50  0001 C CNN
 F 3 "" H 3100 2100 50  0001 C CNN
 	1    3100 2100

@@ -23,19 +23,21 @@
 
 #include "driver/ledc.h"
 #include "driver/sigmadelta.h"
+#include "driver/adc.h"
+
+#include "app_main.h"
 
 const char *T = "VELOGEN";
 
 static EventGroupHandle_t wifi_event_group;
 const static int CONNECTED_BIT = BIT0;
 
-#define STARTUP_DAC_VALUE  -30
-#define STARTUP_DUTY_VALUE  50
+mqtt_client *client = 0;
 
 void connected_cb(void *self, void *params)
 {
     char tempBuff[32];
-    mqtt_client *client = (mqtt_client *)self;
+    client = (mqtt_client *)self;
     mqtt_publish(client, "veloGen/status", "online", 6, 0, 1);
     itoa( STARTUP_DAC_VALUE, tempBuff, 10);
     mqtt_publish(client, "veloGen/dacValue", tempBuff, strlen(tempBuff), 0, 0);
@@ -44,11 +46,13 @@ void connected_cb(void *self, void *params)
     mqtt_subscribe(client, "veloGen/#",  0);
 }
 
-int isTopicMatch( mqtt_event_data_t *event_data, const char *topic ){
+int isTopicMatch( mqtt_event_data_t *event_data, const char *topic )
+{
     return( strncmp( event_data->topic, topic, event_data->topic_length ) == 0 );
 }
 
-long extractLong( mqtt_event_data_t *event_data ){
+long extractLong( mqtt_event_data_t *event_data )
+{
     char tempBuff[32];
     memset( tempBuff, 0, 32 );
     if (event_data->data_length >= 32){
@@ -74,7 +78,10 @@ void data_cb(void *self, void *params)
             ESP_LOGI( T, "DUTY %ld", tempValue );
             ledc_set_duty( LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, tempValue );
             ledc_update_duty( LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0 );
-        }        
+        }     
+        if( isTopicMatch(ed,"veloGen/led") ){
+            gpio_set_level( GPIO_LED, strncmp(ed->data,"true",4)==0 );
+        }
     }
 }
 
@@ -141,7 +148,7 @@ static void wifi_conn_init(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-void app_main()
+void init()
 {
     nvs_flash_init();
     wifi_conn_init();
@@ -159,12 +166,11 @@ void app_main()
         .channel = LEDC_CHANNEL_0,
         //set the duty for initialization.(duty range is 0 ~ ((2**bit_num)-1)
         .duty = STARTUP_DUTY_VALUE,
-        .gpio_num = 12,
+        .gpio_num = GPIO_SEPIC_PWM,
         .intr_type = LEDC_INTR_DISABLE,
         .speed_mode = LEDC_HIGH_SPEED_MODE,
         .timer_sel = LEDC_TIMER_0
     };
-    //set the configuration
     ledc_channel_config(&ledc_channel);
     //------------------------------
     // Setup the DAC
@@ -173,7 +179,51 @@ void app_main()
        .channel = SIGMADELTA_CHANNEL_0,
        .sigmadelta_duty = STARTUP_DAC_VALUE,
        .sigmadelta_prescale = 40,
-       .sigmadelta_gpio = 22
+       .sigmadelta_gpio = GPIO_SEPIC_IMAX
     };
     sigmadelta_config(&sigmadelta_cfg);
+    //------------------------------
+    // Setup misc GPIO
+    //------------------------------
+    gpio_pad_select_gpio( GPIO_LED );
+    ESP_ERROR_CHECK( gpio_set_direction( GPIO_LED, GPIO_MODE_OUTPUT ) );
+    //------------------------------
+    // Setup ADC
+    //------------------------------
+    adc1_config_width( ADC_WIDTH_12Bit );
+    adc1_config_channel_atten( ADC_CH_VBATT, ADC_ATTEN_0db );
+    adc1_config_channel_atten( ADC_CH_IBATT, ADC_ATTEN_6db );       // Full scale: 2.2 V (2.2 A)
+}
+
+static void adc_monitor_task(void *pvParameters)
+{
+    char tempBuff[32];
+    int32_t vBattVal, iBattVal, i;
+    while (true) {
+        vBattVal = 0;
+        iBattVal = 0;
+        for ( i=0; i<128; i++ ){
+            vBattVal += adc1_get_voltage( ADC_CH_VBATT );
+            iBattVal += adc1_get_voltage( ADC_CH_IBATT );
+        }
+        vBattVal = vBattVal * 1000 / 119600;  // [mV]
+        iBattVal = iBattVal * 1000 / 238254;  // [mA]
+        if ( gpio_get_level( GPIO_IBATT_SIGN ) ){
+            iBattVal = -iBattVal;
+        }
+        ESP_LOGI( T, "%6d mV,  %6d mA", vBattVal, iBattVal );
+        if ( client != 0 ){
+            itoa( vBattVal, tempBuff, 10);
+            mqtt_publish(client, "veloGen/vbatt", tempBuff, strlen(tempBuff), 0, 0);
+            itoa( iBattVal, tempBuff, 10);
+            mqtt_publish(client, "veloGen/ibatt", tempBuff, strlen(tempBuff), 0, 0);
+        }
+        vTaskDelay( 500 );
+    }
+}
+
+void app_main()
+{
+    init();
+    xTaskCreate(&adc_monitor_task, "adc_monitor_task", 2048, NULL, 5, NULL);
 }
