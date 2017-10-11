@@ -187,29 +187,31 @@ void init()
     //------------------------------
     gpio_pad_select_gpio( GPIO_LED );
     ESP_ERROR_CHECK( gpio_set_direction( GPIO_LED, GPIO_MODE_OUTPUT ) );
+    gpio_pad_select_gpio( GPIO_IBATT_SIGN);
+    ESP_ERROR_CHECK( gpio_set_direction( GPIO_IBATT_SIGN, GPIO_MODE_INPUT ) );
     //------------------------------
     // Setup ADC
     //------------------------------
     adc1_config_width( ADC_WIDTH_12Bit );
     adc1_config_channel_atten( ADC_CH_VBATT, ADC_ATTEN_0db );
-    adc1_config_channel_atten( ADC_CH_IBATT, ADC_ATTEN_6db );       // Full scale: 2.2 V (2.2 A)
+    adc1_config_channel_atten( ADC_CH_IBATT, ADC_ATTEN_2_5db );       // Full scale: 2.2 V (2.2 A)
 }
 
 static void adc_monitor_task(void *pvParameters)
 {
-    char tempBuff[32];
+    char tempBuff[33];
     int32_t vBattVal, iBattVal, i;
     while (true) {
         vBattVal = 0;
         iBattVal = 0;
         for ( i=0; i<128; i++ ){
-            vBattVal += adc1_get_voltage( ADC_CH_VBATT );
-            iBattVal += adc1_get_voltage( ADC_CH_IBATT );
+            vBattVal += adc1_get_raw( ADC_CH_VBATT );
+            iBattVal += adc1_get_raw( ADC_CH_IBATT );
         }
         vBattVal = vBattVal * 1000 / 119600;  // [mV]
-        iBattVal = iBattVal * 1000 / 238254;  // [mA]
+        iBattVal = iBattVal * 1000 / 169755;  // [mA]
         if ( gpio_get_level( GPIO_IBATT_SIGN ) ){
-            iBattVal = -iBattVal;
+            iBattVal *= -1;
         }
         ESP_LOGI( T, "%6d mV,  %6d mA", vBattVal, iBattVal );
         if ( client != 0 ){

@@ -12,7 +12,7 @@
 #define ADC_CH_VBATT 	 3
 #define ADC_CH_IBATT 	 6
 
-#define STARTUP_DAC_VALUE  -30
+#define STARTUP_DAC_VALUE  -80
 #define STARTUP_DUTY_VALUE  50
 
 #endif
