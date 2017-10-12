@@ -852,5 +852,5 @@ extSda
 Text Label 8750 5600 0    60   ~ 0
 extScl
 Text Notes 750  2450 0    60   ~ 0
-MOsfet mirrored\nProg con mirrored
+MOsfet mirrored\nProg con mirrored\n3.3 reg to wimpy
 $EndSCHEMATC
