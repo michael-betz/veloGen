@@ -2,12 +2,8 @@ EESchema Schematic File Version 3
 LIBS:veloGen-rescue
 LIBS:power
 LIBS:device
-LIBS:transistors
-LIBS:conn
 LIBS:linear
 LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
 LIBS:adc-dac
 LIBS:memory
 LIBS:xilinx
@@ -22,13 +18,11 @@ LIBS:audio
 LIBS:interface
 LIBS:digital-audio
 LIBS:philips
-LIBS:display
 LIBS:cypress
 LIBS:siliconi
 LIBS:opto
 LIBS:atmel
 LIBS:contrib
-LIBS:valves
 LIBS:veloGen-cache
 EELAYER 26 0
 EELAYER END
@@ -195,7 +189,7 @@ L R R6
 U 1 1 58D1DCAF
 P 6050 2850
 F 0 "R6" H 6120 2896 50  0000 L CNN
-F 1 "1M150" H 6120 2805 50  0000 L CNN
+F 1 "1M3" H 6120 2805 50  0000 L CNN
 F 2 "Resistors_SMD:R_0805" V 5980 2850 50  0001 C CNN
 F 3 "" H 6050 2850 50  0001 C CNN
 	1    6050 2850
@@ -206,7 +200,7 @@ L R R7
 U 1 1 58D1DCB5
 P 6050 3250
 F 0 "R7" H 6150 3200 50  0000 L CNN
-F 1 "365k" H 6150 3100 50  0000 L CNN
+F 1 "360k" H 6150 3100 50  0000 L CNN
 F 2 "Resistors_SMD:R_0805" V 5980 3250 50  0001 C CNN
 F 3 "" H 6050 3250 50  0001 C CNN
 	1    6050 3250

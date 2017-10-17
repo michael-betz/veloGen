@@ -90,7 +90,7 @@ static void adc_monitor_task(void *pvParameters)
             vBattVal += adc1_get_raw( ADC_CH_VBATT );
             iBattVal += adc1_get_raw( ADC_CH_IBATT );
         }
-        vBattVal = vBattVal * 1000 / 119600;  // [mV]
+        vBattVal = vBattVal * 1000 / 113133 + 391;  // [mV]
         iBattVal = iBattVal * 1000 / 169755;  // [mA]
         if ( gpio_get_level( GPIO_IBATT_SIGN ) ){
             iBattVal *= -1;
