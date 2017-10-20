@@ -847,4 +847,8 @@ Text Label 8750 5600 0    60   ~ 0
 extScl
 Text Notes 750  2450 0    60   ~ 0
 MOsfet mirrored\nProg con mirrored\n3.3 reg to wimpy
+Text Notes 1550 1000 0    60   ~ 0
+-2.2 A or 2.2 A  =  2.2 V
+Text Notes 3050 950  0    60   ~ 0
+Todo connect schottky diode\nbetween GND, to gain at least\n50 mV at 2 uA, to make the dead\nzone smaller
 $EndSCHEMATC
