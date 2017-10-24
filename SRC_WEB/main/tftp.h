@@ -24,7 +24,11 @@ enum TFTP_STATE {
 	TFTP_OFF, TFTP_IDLE, TFTP_RECEIVE, TFTP_SEND, TFTP_SEND_WAITACK
 };
 
-#define TFTP_BUFFER_SIZE 512
+#define TFTP_PORT 			69
+#define TFTP_BUFFER_SIZE 	512
+#define ERR_PACKET_LEN 		32+5
+#define DATA_PACKET_LEN 	512+4	
+#define ACK_PACKET_LEN 		4
 
 extern void tFtpServerTask(void *pvParameters);
 

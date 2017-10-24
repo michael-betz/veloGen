@@ -1,5 +1,6 @@
 #include <string.h>
 #include "esp_log.h"
+#include "esp_err.h"
 #include <lwip/err.h>
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
@@ -10,14 +11,11 @@
 
 static const char *T = "TFTP";
 
-int sTX=0;		        		// UDP socket handles
-struct sockaddr_in addrTx;		// Remote IP addr. Written once remote sent us a udp packet, so we can answer
-socklen_t addrLenTx = 0;
+int sockHandle=0;		 // UDP socket handle
 uint16_t sendNBytes, currentBlockId;
 
 // Send a TFTP error response with user defined error code and message
 void sendError( uint16_t errNum, const char* errString ){
-	#define ERR_PACKET_LEN 32+5
 	uint8_t errPacket[ERR_PACKET_LEN];
 	ESP_LOGE(T, "TFTP error %s", errString );
 	memset( errPacket, 0, ERR_PACKET_LEN );
@@ -26,12 +24,11 @@ void sendError( uint16_t errNum, const char* errString ){
 	errPacket[3] = errNum;
 	strncpy((char*)&errPacket[4], errString, 32 );
 	hexDump( errPacket, ERR_PACKET_LEN );
-	sendto( sTX, errPacket, ERR_PACKET_LEN, 0, (struct sockaddr*)&addrTx, addrLenTx );
+	send( sockHandle, errPacket, ERR_PACKET_LEN, 0 );
 }
 
 // Sends a data block (<= 512 bytes) returns how many bytes have been sent, decrements len
 uint16_t sendData( uint8_t *buff, uint16_t *len ){
-	#define DATA_PACKET_LEN 512+4
 	uint16_t packetLen = 4;
 	uint8_t dataPacket[DATA_PACKET_LEN];
 	uint8_t *wp=dataPacket;
@@ -48,42 +45,68 @@ uint16_t sendData( uint8_t *buff, uint16_t *len ){
 		*len -= 1;
 	}
 	hexDump( dataPacket, packetLen );
-	packetLen = sendto( sTX, dataPacket, packetLen, 0, (struct sockaddr*)&addrTx, addrLenTx );
+	packetLen = send( sockHandle, dataPacket, packetLen, 0 );
 	currentBlockId++;
 	return( packetLen-4 );
 }
 
+// Sends a ack packet with `blcokId`
+void sendAck( uint16_t blockId ){
+    uint8_t ackPacket[ACK_PACKET_LEN];
+    ackPacket[0] = 0;
+    ackPacket[1] = TFTP_OPCODE_ACK;
+    ackPacket[2] = blockId>>8;
+    ackPacket[3] = blockId;
+    send( sockHandle, ackPacket, ACK_PACKET_LEN, 0 );
+}
+
+// Blocks until a ACK packet with corresponding `blockId` is received
+void waitForAck( uint16_t blockId ){
+    uint8_t ackPacket[ACK_PACKET_LEN];
+    uint16_t receivedBlockId;
+    while(1){
+        // Loop until a valid ACK packet is received
+        int temp = recv( sockHandle, ackPacket, ACK_PACKET_LEN, 0 );
+        if(temp != 4) {
+            continue;
+        }
+        if( ackPacket[0]!=0 || ackPacket[1]!=TFTP_OPCODE_ACK ){
+            continue;
+        }
+        receivedBlockId = ( ackPacket[2]<<8 | ackPacket[3] );
+        if( receivedBlockId == blockId ){
+            return;
+        }
+    }
+}
+
+int generateListenerSocket(){
+    int temp;
+    struct sockaddr_in addrTemp = {
+        .sin_family      = AF_INET,
+        .sin_port        = htons( TFTP_PORT ),
+        .sin_addr.s_addr = htonl( INADDR_ANY )
+    };
+    // Open a UDP socket for listening and answering
+    sockHandle = ESP_ERROR_CHECK( socket(AF_INET, SOCK_DGRAM, 0) );
+    temp       = ESP_ERROR_CHECK( bind( sockHandle, (struct sockaddr *)&addrTemp, sizeof(addrTemp) ) );
+    ESP_LOGI(T, "... socket %d is ready", temp);
+    return temp;
+}
+
 void tFtpServerTask(void *pvParameters){ 
-	int sRX=0, temp, tftpState=TFTP_OFF;
+	int temp=0, sockHandle=0;
 	uint8_t dataBuffer[TFTP_BUFFER_SIZE+1];
 	char fileName[64], *modeName;
-	struct sockaddr_in addrTemp = {
-    	.sin_family      = AF_INET,
-    	.sin_port        = htons(69),
-    	.sin_addr.s_addr = htonl(INADDR_ANY)
-    };
-	socklen_t addrLenTemp = 0;
+	struct sockaddr_in addrTemp;
+	socklen_t addrLenTemp;
 	ESP_LOGI( T, "TFTPs erver started");
-	// Open a UDP socket 69 for answering
-	sTX = socket(AF_INET, SOCK_DGRAM, 0);
-	if(sTX < 0) {
-		ESP_LOGE(T, "... Failed to allocate sTX socket.");
-		goto tftp_error;
-	}
-	// Open a UDP socket 69 for listening
-	sRX = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sRX < 0) {
-        ESP_LOGE(T, "... Failed to allocate sRX socket.");
-        goto tftp_error;
-    }
-    temp = bind( sRX, (struct sockaddr *)&addrTemp, sizeof(addrTemp) );
-    if( temp < 0 ){
-		ESP_LOGE(T, "bind failed: %d", temp);
-		goto tftp_error;
-    }
-    ESP_LOGI(T, "... socket sRX is ready");
-    tftpState = TFTP_IDLE;
     while( 1 ){
+        if( sockHandle != 0 ){
+            close( sockHandle );
+        }
+        // Open a UDP socket for listening and answering
+        sockHandle = generateListenerSocket();
         // Loop forever statemachine
         // this is all implemented with stacked blocking while loops.
         // In a sense the program counter holds the current state ;)
@@ -98,38 +121,34 @@ void tFtpServerTask(void *pvParameters){
         ESP_LOGI( T, "TFTP_IDLE" );
         while( 1 ){
             // Loop until a valid RRQ or WRQ request is received
-            temp = recvfrom( sRX, dataBuffer, TFTP_BUFFER_SIZE, 0, (struct sockaddr *)&addrTemp, &addrLenTemp );
-            if(temp <= 0) {
+            temp = recvfrom( sockHandle, dataBuffer, TFTP_BUFFER_SIZE, 0, (struct sockaddr *)&addrTemp, &addrLen )
+            // addrTemp contains the IP of the remote client
+            if( temp<=4 || dataBuffer[0]!=0 ) {
+                continue;
+            }
+            if( !( dataBuffer[1]==TFTP_OPCODE_RRQ || dataBuffer[1]==TFTP_OPCODE_RRQ ) ){
+                sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
                 continue;
             }
             hexDump( dataBuffer, temp );
-            if( dataBuffer[1] == TFTP_OPCODE_RRQ ){
-                sendNBytes = 1024;
-                currentBlockId = 1;
-                tftpState = TFTP_SEND;
-            } else if ( dataBuffer[1]==TFTP_OPCODE_WRQ ) {
-                tftpState = TFTP_RECEIVE;
-            } else {
-                sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
-                tftpState = TFTP_IDLE;
-                continue;
-            }
             strcpy( fileName, (char*)&dataBuffer[2] );
             modeName = (char*)&dataBuffer[3+strlen(fileName)];
             if( strcmp("octet",modeName) != 0 ){
                 sendError( ERROR_CODE_ILLEGAL_OPERATION, "only octet mode" );
-                tftpState = TFTP_IDLE;
                 continue;
             }
-            memcpy( &addrTx, &addrTemp, addrLenTemp );
-            addrLenTx = addrLenTemp;
-            ESP_LOGI( T, "IP: %s,  File: %s,  Mode: %s, State: %d", inet_ntoa(addrTx.sin_addr), fileName, modeName, tftpState );
             break;
-        }
+        }            
+        // Now `addrTemp` is the only address from which datagrams are received and sent to by default
+        connect( sockHandle, (struct sockaddr *)&addrTemp, &addrLenTemp );
+        ESP_LOGI( T, "IP: %s,  File: %s,  Mode: %s", inet_ntoa(addrTemp.sin_addr), fileName, modeName );
+
         if( dataBuffer[1] == TFTP_OPCODE_RRQ ) {
             //-------------------------------------------------
             // SEND state
             //-------------------------------------------------
+            sendNBytes = 1024;
+            currentBlockId = 1;
             ESP_LOGI( T, "TFTP_SEND %d bytes", sendNBytes );
             // second condition is for notifying end of transmission with an empty packet
             while( sendNBytes>0 || plSent==512 ){ 
@@ -142,19 +161,17 @@ void tFtpServerTask(void *pvParameters){
                     dataBuffer[temp] = 'a';
                 }
                 int16_t plSent = sendData( dataBuffer, &sendNBytes );
-                while(1){
-                    // Loop until a valid ACK packet is received
-                    temp = recvfrom( sRX, dataBuffer, TFTP_BUFFER_SIZE, 0, (struct sockaddr *)&addrTemp, &addrLen );
-                    if(temp < 0) {
-                        continue;
-                    }
-                    // TODO check ack packet block ID
-                    break;
-                }
+                waitForAck( currentBlockId );
             }
+        } else if ( dataBuffer[1] == TFTP_OPCODE_RRQ ) {
+            //-------------------------------------------------
+            // RECEIVE state
+            //-------------------------------------------------
+            currentBlockId = 1;
+            sendAck( currentBlockId );
+            //...
         }
     } // loop forever
-tftp_error:
 	ESP_LOGI( T, "TFTP server stopping");
 	vTaskDelete( NULL );
 }
