@@ -80,69 +80,65 @@ void waitForAck( uint16_t blockId ){
     }
 }
 
+// Returns a socket handle to an open upd port 69 listener
 int generateListenerSocket(){
-    int temp;
+    int sockHandle;
     struct sockaddr_in addrTemp = {
         .sin_family      = AF_INET,
         .sin_port        = htons( TFTP_PORT ),
         .sin_addr.s_addr = htonl( INADDR_ANY )
     };
     // Open a UDP socket for listening and answering
-    sockHandle = ESP_ERROR_CHECK( socket(AF_INET, SOCK_DGRAM, 0) );
-    temp       = ESP_ERROR_CHECK( bind( sockHandle, (struct sockaddr *)&addrTemp, sizeof(addrTemp) ) );
-    ESP_LOGI(T, "... socket %d is ready", temp);
-    return temp;
+    sockHandle =  socket(AF_INET, SOCK_DGRAM, 0);
+    ESP_ERROR_CHECK( bind( sockHandle, (struct sockaddr *)&addrTemp, sizeof(addrTemp) ) );
+    ESP_LOGI(T, "... socket %d is ready", sockHandle);
+    return sockHandle;
 }
 
 void tFtpServerTask(void *pvParameters){ 
-	int temp=0, sockHandle=0;
+	int temp=0, sockHandle=0, plSent=0;
 	uint8_t dataBuffer[TFTP_BUFFER_SIZE+1];
 	char fileName[64], *modeName;
 	struct sockaddr_in addrTemp;
 	socklen_t addrLenTemp;
 	ESP_LOGI( T, "TFTPs erver started");
     while( 1 ){
+        // Loop forever statemachine
+        // this is all implemented with a stack of blocking while loops.
+        // In a sense the program counter holds the current state ;)
+        //
+        // TODO add timeouts to all recvfrom()
+        //
+        //-------------------------------------------------
+        // IDLE state
+        //-------------------------------------------------
+        // We wait for the first received packet, which will set the IP to respond to
+        // Remote IP will be wrote to `addrTemp`
         if( sockHandle != 0 ){
             close( sockHandle );
         }
         // Open a UDP socket for listening and answering
         sockHandle = generateListenerSocket();
-        // Loop forever statemachine
-        // this is all implemented with stacked blocking while loops.
-        // In a sense the program counter holds the current state ;)
-        //
-        // TODO add timeouts to all recvfrom()
-        //
-    	//-------------------------------------------------
-        // IDLE state
-    	//-------------------------------------------------
-        // We wait for the first received packet, which will set the IP to respond to
-    	// Remote IP will be wrote to `addrTemp`
         ESP_LOGI( T, "TFTP_IDLE" );
-        while( 1 ){
-            // Loop until a valid RRQ or WRQ request is received
-            temp = recvfrom( sockHandle, dataBuffer, TFTP_BUFFER_SIZE, 0, (struct sockaddr *)&addrTemp, &addrLen )
-            // addrTemp contains the IP of the remote client
-            if( temp<=4 || dataBuffer[0]!=0 ) {
-                continue;
-            }
-            if( !( dataBuffer[1]==TFTP_OPCODE_RRQ || dataBuffer[1]==TFTP_OPCODE_RRQ ) ){
-                sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
-                continue;
-            }
-            hexDump( dataBuffer, temp );
-            strcpy( fileName, (char*)&dataBuffer[2] );
-            modeName = (char*)&dataBuffer[3+strlen(fileName)];
-            if( strcmp("octet",modeName) != 0 ){
-                sendError( ERROR_CODE_ILLEGAL_OPERATION, "only octet mode" );
-                continue;
-            }
-            break;
-        }            
+        // Loop until a valid RRQ or WRQ request is received
+        temp = recvfrom( sockHandle, dataBuffer, TFTP_BUFFER_SIZE, 0, (struct sockaddr *)&addrTemp, &addrLenTemp );
         // Now `addrTemp` is the only address from which datagrams are received and sent to by default
-        connect( sockHandle, (struct sockaddr *)&addrTemp, &addrLenTemp );
+        if( temp<=4 || dataBuffer[0]!=0 ) {
+            continue;
+        }
+        connect( sockHandle, (struct sockaddr *)&addrTemp, addrLenTemp );
+        if( !( dataBuffer[1]==TFTP_OPCODE_RRQ || dataBuffer[1]==TFTP_OPCODE_RRQ ) ){
+            sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
+            continue;
+        }
+        hexDump( dataBuffer, temp );
+        strcpy( fileName, (char*)&dataBuffer[2] );
+        modeName = (char*)&dataBuffer[3+strlen(fileName)];
+        if( strcmp("octet",modeName) != 0 ){
+            sendError( ERROR_CODE_ILLEGAL_OPERATION, "only octet mode" );
+            continue;
+        }
         ESP_LOGI( T, "IP: %s,  File: %s,  Mode: %s", inet_ntoa(addrTemp.sin_addr), fileName, modeName );
-
         if( dataBuffer[1] == TFTP_OPCODE_RRQ ) {
             //-------------------------------------------------
             // SEND state
@@ -160,7 +156,7 @@ void tFtpServerTask(void *pvParameters){
                     temp = sprintf( (char*)dataBuffer, "Filename: %s\nExample File Payload ...\n", fileName );
                     dataBuffer[temp] = 'a';
                 }
-                int16_t plSent = sendData( dataBuffer, &sendNBytes );
+                plSent = sendData( dataBuffer, &sendNBytes );
                 waitForAck( currentBlockId );
             }
         } else if ( dataBuffer[1] == TFTP_OPCODE_RRQ ) {
