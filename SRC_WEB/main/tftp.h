@@ -26,6 +26,7 @@ enum TFTP_STATE {
 
 #define TFTP_PORT 			69
 #define TFTP_BUFFER_SIZE 	512
+#define TFTP_TIMEOUT_SEC    3
 #define ERR_PACKET_LEN 		32+5
 #define DATA_PACKET_LEN 	512+4	
 #define ACK_PACKET_LEN 		4
