@@ -1,12 +1,22 @@
 #ifndef TFTP_H
 #define TFTP_H
 
+#define TFTP_PORT 			69
+#define TFTP_TIMEOUT_USEC   500*1000
+#define MAX_PAYLOAD_LEN     2048
+#define MAX_RESENDS         3
+#define ERR_PACKET_LEN 		32+5
+#define DATA_PACKET_LEN 	MAX_PAYLOAD_LEN+4
+#define ACK_PACKET_LEN 		4
+#define FILE_NAME_LEN		64
+
 enum OPCODE {
 	TFTP_OPCODE_RRQ   = 1, // Read request
 	TFTP_OPCODE_WRQ   = 2, // Write request
 	TFTP_OPCODE_DATA  = 3, // Data
 	TFTP_OPCODE_ACK   = 4, // Acknowledgement
-	TFTP_OPCODE_ERROR = 5  // Error
+	TFTP_OPCODE_ERROR = 5, // Error
+	TFTP_OPCODE_OPACK = 6  // Option ack
 };
 
 enum ERRORCODE {
@@ -20,16 +30,20 @@ enum ERRORCODE {
 	ERROR_CODE_UNKNOWN_USER      = 7
 };
 
+typedef struct {
+    uint16_t opCode;
+    uint16_t blockId;
+    uint8_t  payload[MAX_PAYLOAD_LEN];
+} tftpHeader_t;
+
+typedef union {
+    uint8_t      b[DATA_PACKET_LEN];
+    tftpHeader_t dat;
+} tftpBuf_t;
+
 enum TFTP_STATE {
 	TFTP_OFF, TFTP_IDLE, TFTP_RECEIVE, TFTP_SEND, TFTP_SEND_WAITACK
 };
-
-#define TFTP_PORT 			69
-#define TFTP_TIMEOUT_SEC    3
-#define MAX_PAYLOAD_LEN     1024
-#define ERR_PACKET_LEN 		32+5
-#define DATA_PACKET_LEN 	MAX_PAYLOAD_LEN+4
-#define ACK_PACKET_LEN 		4
 
 extern void tFtpServerTask(void *pvParameters);
 
