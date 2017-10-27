@@ -10,6 +10,8 @@
 #define ACK_PACKET_LEN 		4
 #define FILE_NAME_LEN		64
 
+#define MIN(a,b) ((a>b)?b:a)
+
 enum OPCODE {
 	TFTP_OPCODE_RRQ   = 1, // Read request
 	TFTP_OPCODE_WRQ   = 2, // Write request
@@ -46,5 +48,15 @@ enum TFTP_STATE {
 };
 
 extern void tFtpServerTask(void *pvParameters);
+
+// will give you requested filename and operation (read/write). 
+// Return <0 to reject it.
+// Otherwise return number of bytes to transfer (only needed for outgoing transfer)
+extern int conSetupCb( char* fName, uint16_t opCode );
+
+// will give you the received payload. Return <0 to cancel the transfer.
+int rxPayloadCb( uint8_t *buff, int buffLen );
+
+// int txPayloadCb( uint8_t *buff, int buffLen );
 
 #endif

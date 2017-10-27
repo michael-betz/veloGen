@@ -13,7 +13,7 @@
 static const char *T = "TFTP";
 
 int sockHandle=0;		 // UDP socket handle
-tftpBuf_t tftpBuf;
+tftpBuf_t tftpBuf;       // Buffer of size DATA_PACKET_LEN, which holds 1 udp payload and is used for everything.
 
 uint16_t swapBytes( uint16_t num ){
     return ((num>>8) | (num<<8));
@@ -92,38 +92,70 @@ int generateListenerSocket(){
     return sockHandle;
 }
 
-#define MIN(a,b) ((a>b)?b:a)
 
 int getHeaderInfo( char *fileNameBuffer, int rxLen ){
-    char *rBuff=(char*)&tftpBuf.b[2];
     int temp, blksize=512;
     if( rxLen < 5 ){
-        sendError( ERROR_CODE_FILE_NOT_FOUND, "fileName?" );
+        sendError( ERROR_CODE_FILE_NOT_FOUND, "WTF??" );
         return -1;
     }
-    temp = strlcpy( fileNameBuffer, rBuff, FILE_NAME_LEN );
-    rxLen -= temp;
-    rBuff += temp+1;
-    if( rxLen<=6 || strcmp("octet",rBuff)!=0 ){
-        sendError( ERROR_CODE_ILLEGAL_OPERATION, "only octet mode!" );
+    char *rBuff=(char*)&tftpBuf.b[2];
+    // rBuff = "bla.txt\0octet\0blksize\01428\0"
+    // First we go through rBuff and replace all \0 with a ':' delimiter
+    for( temp=0; temp<(rxLen-1); temp++){
+        if( *rBuff == '\0'){
+            *rBuff = ':';
+        }
+        rBuff++;
+    }
+    *rBuff = '\0';
+    // rBuff = "bla.txt:octet:blksize:1428\0"
+    // now rBuff is a real string. Split it at ':'
+    rBuff=(char*)&tftpBuf.b[2];
+    if( !(rBuff = strtok(rBuff,":")) ){
+        // Empty filename
+        sendError( ERROR_CODE_FILE_NOT_FOUND, "empty filename" );
         return -1;
     }
-    rBuff += 6;
-    rxLen -= 6;
-    if( rxLen>0 && strcmp("blksize",rBuff)==0 ){
-        rBuff += 8;
-        rxLen -= 8;
-        blksize = atoi( rBuff );
-        if( blksize < 8 || blksize > MAX_PAYLOAD_LEN ){
-            blksize = 512;
+    strlcpy( fileNameBuffer, rBuff, FILE_NAME_LEN );
+    rBuff = strtok( NULL, ":" );
+    if( strcmp("octet",rBuff) != 0 ){
+        // invalid mode
+        sendError( ERROR_CODE_ILLEGAL_OPERATION, "only octet mode" );
+        return -1;
+    }
+    // Get all options
+    while( (rBuff = strtok( NULL, ":" )) ){
+        if( strcmp("blksize",rBuff)==0 ){
+            if( !(rBuff = strtok(NULL,":")) ){
+                blksize = 512;
+            } else {
+                blksize = atoi( rBuff );
+                if( blksize < 8 || blksize > MAX_PAYLOAD_LEN ){
+                    blksize = 512;
+                }            
+            }
         }
     }
     return blksize;
 }
 
+int32_t conSetupCb( char* fName, uint16_t opCode ){
+    if( opCode == TFTP_OPCODE_WRQ ){
+        return 0;
+    } else {
+        // the filename specifies how many bytes of test-payload we shall send to the client
+        return atoi( fName );
+    }
+}
+
+int rxPayloadCb( uint8_t *buff, int buffLen ){
+    hexDump( buff, buffLen );
+    return 0;
+}
+
 void tFtpServerTask(void *pvParameters){ 
-	int rxLen, temp=0, plSent=0;
-    uint32_t sendNBytes;
+	int32_t rxLen, temp=0, plSent=0, sendNBytes;
     uint16_t opCode, currentBlockId, resendCounter, blockSize;
 	char fileName[FILE_NAME_LEN];
 	struct sockaddr_in addrTemp;
@@ -133,6 +165,7 @@ void tFtpServerTask(void *pvParameters){
     while( 1 ){
         // Loop forever statemachine
         if ( tftpState==TFTP_IDLE || tftpState==TFTP_SEND_WAITACK || tftpState==TFTP_RECEIVE ) {
+            // Try to receive 1 UDP packet, which might timeout ...
             rxLen = recvfrom( sockHandle, tftpBuf.b, DATA_PACKET_LEN, 0, (struct sockaddr *)&addrTemp, &addrLenTemp );
         }
         switch( tftpState ){
@@ -141,7 +174,7 @@ void tFtpServerTask(void *pvParameters){
             //-------------------------------------------------
                 // We need to setup the listening socket 
                 if( sockHandle != 0 ){
-                    ESP_ERROR_CHECK( close( sockHandle ) );
+                    ESP_ERROR_CHECK( close(sockHandle) );
                 }
                 sockHandle = generateListenerSocket();
                 rxLen = 0;
@@ -156,7 +189,7 @@ void tFtpServerTask(void *pvParameters){
                     continue;
                 }
                 // `addrTemp` will be the only address from which datagrams are received and sent to by default
-                temp = connect(sockHandle, (struct sockaddr *)&addrTemp, addrLenTemp);
+                temp = connect( sockHandle, (struct sockaddr *)&addrTemp, addrLenTemp );
                 ESP_LOGI(T,"%d = connect(%s:%d)", temp, inet_ntoa(addrTemp.sin_addr), addrTemp.sin_port );
                 if ( temp < 0 ){
                     ESP_LOGE(T, "%s", strerror(errno) );
@@ -164,24 +197,25 @@ void tFtpServerTask(void *pvParameters){
                     continue;
                 }
                 opCode = swapBytes( tftpBuf.dat.opCode );
-                if( opCode==TFTP_OPCODE_RRQ ){
-                    tftpState = TFTP_SEND;
-                    sendNBytes = 1024*1024*4;
-                    currentBlockId = 1;
-                    ESP_LOGI( T, "TFTP_SEND %d bytes", sendNBytes );
-                } else if ( opCode==TFTP_OPCODE_WRQ ){
-                    tftpState = TFTP_RECEIVE;
-                    currentBlockId = 1;
-                } else {
+                if( opCode!=TFTP_OPCODE_RRQ && opCode!=TFTP_OPCODE_RRQ ){
                     sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
                     tftpState = TFTP_OFF;       // Get a new socket
                     continue;
                 }
-                if( (blockSize = getHeaderInfo( fileName, rxLen )) < 1 ){
+                // Inform user about connection request and ask if I should accept it
+                if( (sendNBytes = conSetupCb(fileName,opCode)) < 0 ){
+                    sendError( ERROR_CODE_ILLEGAL_OPERATION, "ESP no like dis");
+                    tftpState = TFTP_OFF;       // User didnt accept transfer, get a new socket
+                    continue;   
+                }
+                tftpState = (opCode==TFTP_OPCODE_RRQ) ? TFTP_SEND : TFTP_RECEIVE;
+                // See if there is a custom blocksize in the options
+                if( (blockSize = getHeaderInfo(fileName,rxLen)) < 1 ){
                     tftpState = TFTP_OFF;       // Get a new socket
                     continue;   
                 }
-                if( blockSize != 512 ){          // Need to send an optack
+                currentBlockId = 1;
+                if( blockSize != 512 ){         // Need to send an optack
                     // Send the optack
                     setHeader( TFTP_OPCODE_OPACK, 0 );
                     temp = sprintf( (char*)&tftpBuf.b[2], "blksize %d", blockSize );
@@ -192,6 +226,7 @@ void tFtpServerTask(void *pvParameters){
                     plSent = 0;
                     tftpState = TFTP_SEND_WAITACK;
                 }
+                resendCounter = 0;
                 ESP_LOGI( T, "File: %s,  State: %d", fileName, tftpState );
                 break;
         //-------------------------------------------------
@@ -217,7 +252,7 @@ void tFtpServerTask(void *pvParameters){
                 currentBlockId++;
                 sendNBytes -= plSent;
                 if( sendNBytes<=0 && plSent!=blockSize ){
-                    ESP_LOGI(T,"DONE transf");
+                    ESP_LOGI(T,"!!! DONE sending !!!");
                     tftpState = TFTP_OFF;
                 } else {
                     tftpState = TFTP_SEND;
@@ -229,7 +264,7 @@ void tFtpServerTask(void *pvParameters){
                     plSent = sendData( 0, sendNBytes, currentBlockId );
                     resendCounter++;
                 } else {
-                    ESP_LOGE(T,"SEND_WAITACK: %s, back to Start", strerror(errno) );
+                    ESP_LOGE(T,"SEND_WAITACK: timeout, back to start");
                     tftpState = TFTP_OFF;
                 }
             }
@@ -237,24 +272,34 @@ void tFtpServerTask(void *pvParameters){
         //-------------------------------------------------
         case TFTP_RECEIVE:
         //-------------------------------------------------
-            if( rxLen < 4 ){
+            if( rxLen < 0 ){
                 //maybe timeout
-                ESP_LOGE( T, "TFTP_RECEIVE: rxLen = %d, %s", rxLen, strerror(errno) );
+                if ( resendCounter <= MAX_RESENDS ){
+                    ESP_LOGW( T, "TFTP_RECEIVE: waiting(%d)... %s", resendCounter, strerror(errno) );
+                    sendAck( currentBlockId );
+                    resendCounter++;
+                } else {
+                    ESP_LOGE( T, "TFTP_RECEIVE: timeout, back to start");
+                    tftpState = TFTP_OFF;
+                }
+                continue;
+            }
+            if( !isValidPacket( rxLen, currentBlockId, TFTP_OPCODE_DATA ) ){
+                // Received an invalid packet, might be caused by a previously lost ack
+                continue;
+            }
+            if( rxPayloadCb( tftpBuf.dat.payload, rxLen-4 ) < 0 ){
+                sendError( ERROR_CODE_ILLEGAL_OPERATION, "ESP no like dis");
                 tftpState = TFTP_OFF;
                 continue;
             }
             sendAck( currentBlockId );
-            if( !isValidPacket( rxLen, currentBlockId, TFTP_OPCODE_DATA ) ){
-                // Might be caused by a previously lost ack
-                continue;
-            }
-            hexDump( &tftpBuf.b[4], rxLen-4 );
-            if( rxLen-4 >= 512 ){
+            if( rxLen-4 >= blockSize ){
                 currentBlockId++;
             } else {
                 // THis was the last block, we are done
                 tftpState = TFTP_OFF;
-                ESP_LOGI( T, "DONE!");
+                ESP_LOGI(T,"!!! DONE receiving !!!");
             }
             break;
         //-------------------------------------------------
