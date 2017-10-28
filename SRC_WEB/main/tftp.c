@@ -15,6 +15,24 @@ static const char *T = "TFTP";
 int sockHandle=0;		 // UDP socket handle
 tftpBuf_t tftpBuf;       // Buffer of size DATA_PACKET_LEN, which holds 1 udp payload and is used for everything.
 
+
+int32_t conSetupCb( char* fName, uint16_t opCode ){
+    uint32_t l;
+    if( opCode == TFTP_OPCODE_WRQ ){
+        return 0;
+    } else {
+        // the filename specifies how many bytes of test-payload we shall send to the client
+        l = atoi( fName );
+        ESP_LOGI(T,"sending %d bytes (%s)", l, fName);
+        return l;
+    }
+}
+
+int rxPayloadCb( uint8_t *buff, int buffLen ){
+    // hexDump( buff, buffLen );
+    return 0;
+}
+
 uint16_t swapBytes( uint16_t num ){
     return ((num>>8) | (num<<8));
 }
@@ -140,20 +158,6 @@ int getHeaderInfo( char *fileNameBuffer, int rxLen ){
     return blksize;
 }
 
-int32_t conSetupCb( char* fName, uint16_t opCode ){
-    if( opCode == TFTP_OPCODE_WRQ ){
-        return 0;
-    } else {
-        // the filename specifies how many bytes of test-payload we shall send to the client
-        return atoi( fName );
-    }
-}
-
-int rxPayloadCb( uint8_t *buff, int buffLen ){
-    hexDump( buff, buffLen );
-    return 0;
-}
-
 void tFtpServerTask(void *pvParameters){ 
 	int32_t rxLen, temp=0, plSent=0, sendNBytes;
     uint16_t opCode, currentBlockId, resendCounter, blockSize;
@@ -185,8 +189,7 @@ void tFtpServerTask(void *pvParameters){
             //-------------------------------------------------
                 // wait for the first received packet, which will set the IP to respond to
                 if ( rxLen < 4 ) {
-                    // Timeout / random packet, try again
-                    continue;
+                    continue;    // Timeout / random packet, try again
                 }
                 // `addrTemp` will be the only address from which datagrams are received and sent to by default
                 temp = connect( sockHandle, (struct sockaddr *)&addrTemp, addrLenTemp );
@@ -197,10 +200,15 @@ void tFtpServerTask(void *pvParameters){
                     continue;
                 }
                 opCode = swapBytes( tftpBuf.dat.opCode );
-                if( opCode!=TFTP_OPCODE_RRQ && opCode!=TFTP_OPCODE_RRQ ){
+                if( opCode!=TFTP_OPCODE_RRQ && opCode!=TFTP_OPCODE_WRQ ){
                     sendError( ERROR_CODE_ILLEGAL_OPERATION, "only RRQ and WRQ" );
                     tftpState = TFTP_OFF;       // Get a new socket
                     continue;
+                }
+                // See if there is a custom blocksize in the options
+                if( (blockSize = getHeaderInfo(fileName,rxLen)) < 1 ){
+                    tftpState = TFTP_OFF;       // Get a new socket
+                    continue;   
                 }
                 // Inform user about connection request and ask if I should accept it
                 if( (sendNBytes = conSetupCb(fileName,opCode)) < 0 ){
@@ -208,23 +216,29 @@ void tFtpServerTask(void *pvParameters){
                     tftpState = TFTP_OFF;       // User didnt accept transfer, get a new socket
                     continue;   
                 }
-                tftpState = (opCode==TFTP_OPCODE_RRQ) ? TFTP_SEND : TFTP_RECEIVE;
-                // See if there is a custom blocksize in the options
-                if( (blockSize = getHeaderInfo(fileName,rxLen)) < 1 ){
-                    tftpState = TFTP_OFF;       // Get a new socket
-                    continue;   
-                }
-                currentBlockId = 1;
-                if( blockSize != 512 ){         // Need to send an optack
-                    // Send the optack
+                if( blockSize == 512 ){     // classic mode
+                    if( opCode == TFTP_OPCODE_WRQ ){
+                        currentBlockId = 0;
+                        sendAck( currentBlockId++ );
+                        tftpState = TFTP_RECEIVE;
+                    } else {
+                        currentBlockId = 1;
+                        tftpState = TFTP_SEND;
+                    }
+                } else {                    // option mode, need to send an optack
                     setHeader( TFTP_OPCODE_OPACK, 0 );
                     temp = sprintf( (char*)&tftpBuf.b[2], "blksize %d", blockSize );
                     ESP_LOGI(T,"sending opack: %s", (char*)&tftpBuf.b[2] );
                     tftpBuf.b[9] = '\0';
                     send( sockHandle, tftpBuf.b, temp+2, 0 );
-                    currentBlockId = 0;
                     plSent = 0;
-                    tftpState = TFTP_SEND_WAITACK;
+                    if( opCode == TFTP_OPCODE_WRQ ){
+                        currentBlockId = 1;
+                        tftpState = TFTP_RECEIVE;
+                    } else {
+                        currentBlockId = 0;
+                        tftpState = TFTP_SEND_WAITACK;
+                    }
                 }
                 resendCounter = 0;
                 ESP_LOGI( T, "File: %s,  State: %d", fileName, tftpState );
@@ -286,6 +300,7 @@ void tFtpServerTask(void *pvParameters){
             }
             if( !isValidPacket( rxLen, currentBlockId, TFTP_OPCODE_DATA ) ){
                 // Received an invalid packet, might be caused by a previously lost ack
+                ESP_LOGW(T,"invalid data-packet expected blockId %d", currentBlockId );
                 continue;
             }
             if( rxPayloadCb( tftpBuf.dat.payload, rxLen-4 ) < 0 ){
