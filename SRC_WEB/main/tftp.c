@@ -226,19 +226,20 @@ void tFtpServerTask(void *pvParameters){
                         tftpState = TFTP_SEND;
                     }
                 } else {                    // option mode, need to send an optack
-                    setHeader( TFTP_OPCODE_OPACK, 0 );
-                    temp = sprintf( (char*)&tftpBuf.b[2], "blksize %d", blockSize );
-                    ESP_LOGI(T,"sending opack: %s", (char*)&tftpBuf.b[2] );
-                    tftpBuf.b[9] = '\0';
-                    send( sockHandle, tftpBuf.b, temp+2, 0 );
-                    plSent = 0;
                     if( opCode == TFTP_OPCODE_WRQ ){
+                        blockSize = MIN( blockSize, 1468 ); //empirical limit
                         currentBlockId = 1;
                         tftpState = TFTP_RECEIVE;
                     } else {
                         currentBlockId = 0;
                         tftpState = TFTP_SEND_WAITACK;
                     }
+                    setHeader( TFTP_OPCODE_OPACK, 0 );
+                    temp = sprintf( (char*)&tftpBuf.b[2], "blksize %d", blockSize );
+                    ESP_LOGI(T,"sending opack: %s", (char*)&tftpBuf.b[2] );
+                    tftpBuf.b[9] = '\0';
+                    send( sockHandle, tftpBuf.b, temp+3, 0 );
+                    plSent = 0;
                 }
                 resendCounter = 0;
                 ESP_LOGI( T, "File: %s,  State: %d", fileName, tftpState );
