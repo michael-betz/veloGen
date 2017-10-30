@@ -3,7 +3,7 @@
 otadata,  data, ota,     0x006000, 0x002000
 # partition table        0x008000, 0x000C00
 nvs,      data, nvs,     0x009000, 0x007000
-recovery, app,  factory, 0x010000, 0x070000
-main,     app,  ota_0,   0x080000, 0x070000
-filesys,  data, spiffs,  0x0F0000, 0x310000
+main0, 	  app,  ota_0,	 0x010000, 0x100000
+main1,    app,  ota_1,   0x110000, 0x100000
+filesys,  data, spiffs,  0x210000, 0x1E0000
 # End of flash           0x400000

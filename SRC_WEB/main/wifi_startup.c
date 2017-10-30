@@ -13,22 +13,21 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 
-#include "tftp.h"
+
 #include "wifi_startup.h"
 
 static const char *T = "WIFI_STARTUP";
 EventGroupHandle_t wifi_event_group;
 
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
-{
+{  
     switch(event->event_id) {
         case SYSTEM_EVENT_STA_START:
+            ESP_ERROR_CHECK( tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, HOSTNAME) );
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-            //Start tftp server
-            xTaskCreate(&tFtpServerTask, "tftp_server_task", 4096, NULL, 5, NULL);
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
             /* This is a workaround as ESP32 WiFi libs don't currently
@@ -45,6 +44,8 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 void wifi_conn_init(void)
 {
     tcpip_adapter_init();
+    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, "velogen");
+
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();

@@ -15,6 +15,4 @@
 #define STARTUP_DAC_VALUE  -80
 #define STARTUP_DUTY_VALUE  50
 
-extern void hexDump( uint8_t *buffer, uint16_t nBytes );
-
 #endif
