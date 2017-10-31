@@ -1,0 +1,9 @@
+# My custom patent pending super awesome ESP32 Partition Table
+# Name,   Type, SubType, Offset,   Size
+otadata,  data, ota,     0x006000, 0x002000
+# partition table        0x008000, 0x000C00
+nvs,      data, nvs,     0x009000, 0x007000
+main0, 	  app,  ota_0,	 0x010000, 0x070000
+main1,    app,  ota_1,   0x080000, 0x100000
+filesys,  data, spiffs,  0x180000, 0x280000
+# End of flash           0x400000

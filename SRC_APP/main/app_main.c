@@ -40,49 +40,54 @@
 #include "cgi.h"
 #include "cgi-test.h"
 
-#define EXPERIMENTAL 1
+static const char *T = "VELOEXP";
+Websock *debugWs = NULL;
 
-#if EXPERIMENTAL
-    static const char *T = "VELOEXP";
-#else
-    static const char *T = "VELORECOVER";
-#endif
 
 //Broadcast the uptime in seconds every second over connected websockets
-// static void websocketBcast(void *arg) {
-//     static int ctr=0;
-//     char buff[128];
-//     while(1) {
-//         ctr++;
-//         sprintf(buff, "Up for %d minutes %d seconds!\n", ctr/60, ctr%60);
-//         cgiWebsockBroadcast("/websocket/ws.cgi", buff, strlen(buff), WEBSOCK_FLAG_NONE);
-//         vTaskDelay(1000/portTICK_RATE_MS);
-//     }
-// }
-
-//On reception of a message, send "You sent: " plus whatever the other side sent
-static void myWebsocketRecv(Websock *ws, char *data, int len, int flags) {
-    int i;
-    char buff[128];
-    sprintf(buff, "You sent: ");
-    for (i=0; i<len; i++) buff[i+10]=data[i];
-    buff[i+10]=0;
-    cgiWebsocketSend(ws, buff, strlen(buff), WEBSOCK_FLAG_NONE);
+static void websocketBcast(void *arg) {
+    static int ctr=0;
+    while(1) {
+        ctr++;
+        vTaskDelay(10000/portTICK_RATE_MS);
+        ESP_LOGI(T, "This is a test of the public broadcast system");
+        if( debugWs ){
+            cgiWebsocketSend(debugWs, "BlaBlaBla!\n", 11, WEBSOCK_FLAG_NONE);    
+        }
+    }
 }
 
-//Websocket connected. Install reception handler and send welcome message.
-static void myWebsocketConnect(Websock *ws) {
-    ws->recvCb=myWebsocketRecv;
-    cgiWebsocketSend(ws, "Hi, Websocket!", 14, WEBSOCK_FLAG_NONE);
+static int wsDebugPrintf( const char *format, va_list arg ){
+    static char charBuffer[512];
+    static  int charLen;
+    if( debugWs == NULL ){
+        esp_log_set_vprintf( &vprintf );
+        return 0;
+    }
+    charLen = vsprintf( charBuffer, format, arg );
+    if( charLen <= 0 ){
+        return 0;
+    }
+    charBuffer[511] = '\0';
+    if( cgiWebsocketSend(debugWs, charBuffer, charLen, WEBSOCK_FLAG_NONE) ){
+        // Output to UART as well
+        printf( "WS: %s", charBuffer );
+        return charLen;
+    }
+    return 0;
 }
 
-CgiUploadFlashDef uploadParams={
-    .type=CGIFLASH_TYPE_FW,
-    .fw1Pos=0x110000,
-    .fw2Pos=0x110000,
-    .fwSize=0x100000,
-    .tagName="main1"
-};
+static void debugWsClose(Websock *ws){
+    debugWs = NULL;
+}
+
+//Debugging Websocket connected.
+static void debugWsConnect(Websock *ws) {
+    ws->closeCb = debugWsClose;
+    debugWs = ws;
+    cgiWebsocketSend(debugWs, "Hellow Websocket World!\n", 24, WEBSOCK_FLAG_NONE);
+    // esp_log_set_vprintf( wsDebugPrintf );
+}
 
 const HttpdBuiltInUrl builtInUrls[]={
     {"*", cgiRedirectApClientToHostname, HOSTNAME},
@@ -99,22 +104,19 @@ const HttpdBuiltInUrl builtInUrls[]={
     {"/wifi/connstatus.cgi", cgiWiFiConnStatus, NULL},
     {"/wifi/setmode.cgi", cgiWiFiSetMode, NULL},
 
-    {"/flash/", cgiRedirect, "/flash/index.html"},
-    // {"/flash/next", cgiGetFirmwareNext, &uploadParams},
-    {"/flash/upload", cgiUploadFirmware, &uploadParams},
-    {"/flash/reboot", cgiRebootFirmware, NULL},
-
-
-    {"/websocket/ws.cgi", cgiWebsocket, myWebsocketConnect},
+    {"/reboot", cgiRebootFirmware, NULL},
 
     {"/test", cgiRedirect, "/test/index.html"},
     {"/test/", cgiRedirect, "/test/index.html"},
     {"/test/test.cgi", cgiTestbed, NULL},
 
+    {"/debug",          cgiRedirect, "/debug/index.html"},
+    {"/debug/",         cgiRedirect, "/debug/index.html"},
+    {"/debug/ws.cgi",   cgiWebsocket, debugWsConnect },
+
     {"*", cgiEspFsHook, NULL}, //Catch-all cgi function for the filesystem
     {NULL, NULL, NULL}
 };
-
 
 void clearBootFlag(){
     // next reboot will go back in previous firmware
@@ -131,9 +133,8 @@ void clearBootFlag(){
 
 void app_main()
 {
-    #ifdef EXPERIMENTAL
-        clearBootFlag();
-    #endif
+    clearBootFlag();
+
     int temp;
     ESP_LOGW(T,"RAM left %d\n", esp_get_free_heap_size());
 
@@ -159,7 +160,7 @@ void app_main()
     //------------------------------
     ESP_ERROR_CHECK( espFsInit((void*)(webpages_espfs_start)) );
     ESP_ERROR_CHECK( httpdInit(builtInUrls, 80, 0) );
-    // xTaskCreate( websocketBcast, "wsbcast", 4096, NULL, 1, NULL);
+    xTaskCreate( websocketBcast, "wsbcast", 4096, NULL, 1, NULL);
     ESP_LOGW(T,"RAM left %d\n", esp_get_free_heap_size() );
 }
 

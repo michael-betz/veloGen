@@ -50,25 +50,16 @@ function doUpgrade() {
 	return false;
 }
 
-
 window.onload=function(e) {
-	$("#remark").innerHTML="Please upload ota file."
-	// xhr.open("GET", "next");
-	// xhr.onreadystatechange=function() {
-	// 	if (xhr.readyState==4 && xhr.status>=200 && xhr.status<300) {
-	// 		var txt="Please upload "+xhr.responseText+" or ota file.";
-	// 		$("#remark").innerHTML=txt;
-	// 		setProgress(0);
-	// 	}
-	// }
-	// xhr.send();
+	$("#remark").innerHTML="Please upload .bin file."
 }
 
 </script>
 </head>
 <body>
 <div id="main">
-<h1>Update firmware</h1>
+<h1>Recovery Mode</h1>
+<h3>Update the application image at OTA1</h3>
 <div id="remark">Loading...</div>
 <input type="file" id="file" />
 <input type="submit" value="Upgrade!" onclick="doUpgrade()" />
