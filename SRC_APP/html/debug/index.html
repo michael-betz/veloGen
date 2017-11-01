@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 
 <meta charset="utf-8" />
+<script src="ansi_up.js" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="debug.css">
 
-<title>Debugging Console</title>
+<title>Velogen Debugging Console</title>
 
 <script language="javascript" type="text/javascript">
 
-  var wsUri = "ws://"+window.location.host+"/debug/ws.cgi";
+  //var wsUri = "ws://"+window.location.host+"/debug/ws.cgi";
+  var wsUri = "ws://velogen/debug/ws.cgi";
   var output;
+  var ansi_up = new AnsiUp;
 
   function init()
   {
@@ -31,7 +35,7 @@
 
   function onMessage(evt)
   {
-    writeToScreen('<span style="color: blue;">RECEIVED: ' + evt.data+'</span>');
+    writeToScreen(evt.data);
     window.scrollBy(0, 100);
   }
 
@@ -42,9 +46,9 @@
 
   function writeToScreen(message)
   {
-    var pre = document.createElement("p");
-    pre.style.wordWrap = "break-word";
-    pre.innerHTML = message;
+    var pre = document.createElement("li");
+    var html = ansi_up.ansi_to_html(message);
+    pre.innerHTML = html;
     output.appendChild(pre);
   }
 
@@ -52,6 +56,6 @@
 
 </script>
 
-<h2>WebSocket Test</h2>
-
-<div id="output"></div>
+<div class="shell-wrap">
+  <ul class="shell-body", id="output"></ul>
+</div>

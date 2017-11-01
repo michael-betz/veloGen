@@ -1,0 +1,23 @@
+
+.shell-wrap {
+  width: 90%;
+  margin: 100px auto 0 auto;
+  /*border: 10px solid #4D4B44;*/
+}
+
+.shell-body {
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+  background: #300A24;
+  color: #AAAAAA;
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  line-height: 1.6em;
+  -webkit-border-radius: 10px;
+}
+
+.shell-body li {
+  word-wrap: break-word;
+  position: relative;
+  padding: 0 0 0 10px;
+}

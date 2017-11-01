@@ -41,52 +41,25 @@
 #include "cgi-test.h"
 
 static const char *T = "VELOEXP";
-Websock *debugWs = NULL;
-
-
-//Broadcast the uptime in seconds every second over connected websockets
-static void websocketBcast(void *arg) {
-    static int ctr=0;
-    while(1) {
-        ctr++;
-        vTaskDelay(10000/portTICK_RATE_MS);
-        ESP_LOGI(T, "This is a test of the public broadcast system");
-        if( debugWs ){
-            cgiWebsocketSend(debugWs, "BlaBlaBla!\n", 11, WEBSOCK_FLAG_NONE);    
-        }
-    }
-}
 
 static int wsDebugPrintf( const char *format, va_list arg ){
     static char charBuffer[512];
     static  int charLen;
-    if( debugWs == NULL ){
-        esp_log_set_vprintf( &vprintf );
-        return 0;
-    }
     charLen = vsprintf( charBuffer, format, arg );
     if( charLen <= 0 ){
         return 0;
     }
     charBuffer[511] = '\0';
-    if( cgiWebsocketSend(debugWs, charBuffer, charLen, WEBSOCK_FLAG_NONE) ){
-        // Output to UART as well
-        printf( "WS: %s", charBuffer );
-        return charLen;
-    }
-    return 0;
-}
-
-static void debugWsClose(Websock *ws){
-    debugWs = NULL;
+    cgiWebsockBroadcast("/debug/ws.cgi", charBuffer, charLen, WEBSOCK_FLAG_NONE);
+    // Output to UART as well
+    printf( "%s", charBuffer );
+    return charLen;
 }
 
 //Debugging Websocket connected.
 static void debugWsConnect(Websock *ws) {
-    ws->closeCb = debugWsClose;
-    debugWs = ws;
-    cgiWebsocketSend(debugWs, "Hellow Websocket World!\n", 24, WEBSOCK_FLAG_NONE);
-    // esp_log_set_vprintf( wsDebugPrintf );
+    esp_log_set_vprintf( wsDebugPrintf );
+    ESP_LOGI(T,"Client connected to debug websocket");
 }
 
 const HttpdBuiltInUrl builtInUrls[]={
@@ -160,17 +133,16 @@ void app_main()
     //------------------------------
     ESP_ERROR_CHECK( espFsInit((void*)(webpages_espfs_start)) );
     ESP_ERROR_CHECK( httpdInit(builtInUrls, 80, 0) );
-    xTaskCreate( websocketBcast, "wsbcast", 4096, NULL, 1, NULL);
     ESP_LOGW(T,"RAM left %d\n", esp_get_free_heap_size() );
 }
 
-// Print a pretty hex-dump on the debug out
-static void hexDump( uint8_t *buffer, uint16_t nBytes ){
-    for( uint16_t i=0; i<nBytes; i++ ){
-        if( (nBytes>16) && ((i%16)==0) ){
-            printf("\n    %04x: ", i);
-        }
-        printf("%02x ", *buffer++);
-    }
-    printf("\n");
-}
+// // Print a pretty hex-dump on the debug out
+// static void hexDump( uint8_t *buffer, uint16_t nBytes ){
+//     for( uint16_t i=0; i<nBytes; i++ ){
+//         if( (nBytes>16) && ((i%16)==0) ){
+//             printf("\n    %04x: ", i);
+//         }
+//         printf("%02x ", *buffer++);
+//     }
+//     printf("\n");
+// }
