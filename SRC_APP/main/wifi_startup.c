@@ -44,7 +44,6 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 void wifi_conn_init(void)
 {
     tcpip_adapter_init();
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, "velogen");
 
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));

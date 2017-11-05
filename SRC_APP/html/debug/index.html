@@ -2,20 +2,45 @@
 
 <meta charset="utf-8" />
 <script src="ansi_up.js" type="text/javascript"></script>
-<link rel="stylesheet" type="text/css" href="debug.css">
+<script src="../flash/140medley.min.js" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="../style.css">
 
 <title>Velogen Debugging Console</title>
 
 <script language="javascript" type="text/javascript">
 
-  //var wsUri = "ws://"+window.location.host+"/debug/ws.cgi";
-  var wsUri = "ws://velogen/debug/ws.cgi";
+  var xhr=j();
+  var wsUri = "ws://"+window.location.host+"/debug/ws.cgi";
+  // var wsUri = "ws://velogen/debug/ws.cgi";
   var output;
   var ansi_up = new AnsiUp;
 
-  function init()
-  {
+  function nc() {
+    return "?nocache="+Math.floor(Math.random()*100000).toString();
+  }
+
+  function readFile( fName, doneFunction ){
+    fName += nc();
+    console.log("GETing: "+fName);
+    xhr.open("GET", fName );
+    xhr.onreadystatechange=function() {
+      if (xhr.readyState==4 && xhr.status>=200 && xhr.status<300) {
+        xhr.responseText.split("\n").forEach( function(e) {
+          writeToScreen( e );
+          window.scrollBy(0, 100);
+        });
+        if( doneFunction ){
+          doneFunction();  
+        }
+      }
+    }
+    xhr.send();
+  }
+
+  function init() {
     output = document.getElementById("output");
+    readFile( "../S/b.txt", function(){ readFile("../S/a.txt") } )
+    
     websocket = new WebSocket(wsUri);
     websocket.onopen = function(evt) { onOpen(evt) };
     websocket.onclose = function(evt) { onClose(evt) };
@@ -25,12 +50,13 @@
 
   function onOpen(evt)
   {
-    writeToScreen("CONNECTED");
+    writeToScreen("WS CONNECTED");
+
   }
 
   function onClose(evt)
   {
-    writeToScreen("DISCONNECTED");
+    writeToScreen("WS DISCONNECTED");
   }
 
   function onMessage(evt)
@@ -55,7 +81,9 @@
   window.addEventListener("load", init, false);
 
 </script>
-
+<body>
+<h1>VeloGen Debug Console</h1>
 <div class="shell-wrap">
   <ul class="shell-body", id="output"></ul>
 </div>
+</body>

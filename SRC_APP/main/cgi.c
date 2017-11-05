@@ -18,58 +18,52 @@ flash as a binary. Also handles the hit counter on the main page.
 #include "cgi.h"
 
 
-//cause I can't be bothered to write an ioGetLed()
-static char currLedState=0;
-
-//Cgi that turns the LED on or off according to the 'led' param in the POST data
-CgiStatus ICACHE_FLASH_ATTR cgiLed(HttpdConnData *connData) {
+//This is a catch-all cgi function. It takes the url passed to it, looks up the corresponding
+//path in the SPIFFS filesystem and if it exists, passes the file through. This simulates what a normal
+//webserver would do with static files.
+CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData) {
+	FILE *file=connData->cgiData;
 	int len;
 	char buff[1024];
-	
+	char acceptEncodingBuffer[64];
+
 	if (connData->conn==NULL) {
 		//Connection aborted. Clean up.
+		fclose(file);
 		return HTTPD_CGI_DONE;
 	}
 
-	len=httpdFindArg(connData->post->buff, "led", buff, sizeof(buff));
-	if (len!=0) {
-		currLedState=atoi(buff);
-		gpio_set_level( GPIO_LED, currLedState );
-	}
-
-	httpdRedirect(connData, "led.tpl");
-	return HTTPD_CGI_DONE;
-}
-
-
-//Template code for the led page.
-int ICACHE_FLASH_ATTR tplLed(HttpdConnData *connData, char *token, void **arg) {
-	char buff[128];
-	if (token==NULL) return HTTPD_CGI_DONE;
-
-	strcpy(buff, "Unknown");
-	if (strcmp(token, "ledstate")==0) {
-		if (currLedState) {
-			strcpy(buff, "on");
+	//First call to this cgi.
+	if (file==NULL) {
+		if (connData->cgiArg != NULL) {
+			//Open a different file than provided in http request.
+			//Common usage: {"/", cgiEspFsHook, "/index.html"} will show content of index.html without actual redirect to that file if host root was requested
+			file = fopen((char*)connData->cgiArg, "r");
 		} else {
-			strcpy(buff, "off");
+			//Open the file so we can read it.
+			file = fopen(connData->url, "r");
 		}
+
+		if (file==NULL) {
+			return HTTPD_CGI_NOTFOUND;
+		}
+
+		connData->cgiData=file;
+		httpdStartResponse(connData, 200);
+		httpdHeader(connData, "Content-Type", httpdGetMimetype(connData->url));
+		httpdHeader(connData, "Cache-Control", "max-age=3600, must-revalidate");
+		httpdEndHeaders(connData);
+		return HTTPD_CGI_MORE;
 	}
-	httpdSend(connData, buff, -1);
-	return HTTPD_CGI_DONE;
-}
 
-static int hitCounter=0;
-
-//Template code for the counter on the index page.
-int ICACHE_FLASH_ATTR tplCounter(HttpdConnData *connData, char *token, void **arg) {
-	char buff[128];
-	if (token==NULL) return HTTPD_CGI_DONE;
-
-	if (strcmp(token, "counter")==0) {
-		hitCounter++;
-		sprintf(buff, "%d", hitCounter);
+	len=fread(buff, 1, 1024, file);
+	if (len>0) httpdSend(connData, buff, len);
+	if (len!=1024) {
+		//We're done.
+		fclose(file);
+		return HTTPD_CGI_DONE;
+	} else {
+		//Ok, till next time.
+		return HTTPD_CGI_MORE;
 	}
-	httpdSend(connData, buff, -1);
-	return HTTPD_CGI_DONE;
 }

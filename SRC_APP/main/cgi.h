@@ -3,8 +3,6 @@
 
 #include "libesphttpd/httpd.h"
 
-CgiStatus cgiLed(HttpdConnData *connData);
-int tplLed(HttpdConnData *connData, char *token, void **arg);
-int tplCounter(HttpdConnData *connData, char *token, void **arg);
+CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData);
 
 #endif
