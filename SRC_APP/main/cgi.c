@@ -1,22 +1,10 @@
-/*
-Some random cgi routines. Used in the LED example and the page that returns the entire
-flash as a binary. Also handles the hit counter on the main page.
-*/
-
-/*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * Jeroen Domburg <jeroen@spritesmods.com> wrote this file. As long as you retain 
- * this notice you can do whatever you want with this stuff. If we meet some day, 
- * and you think this stuff is worth it, you can buy me a beer in return. 
- * ----------------------------------------------------------------------------
- */
-
+//--------------------------------------------------------
+// esp32Httpd cgi callback for serving files from SPIFFS
+//--------------------------------------------------------
 
 #include "libesphttpd/esp.h"
 #include "app_main.h"
 #include "cgi.h"
-
 
 //This is a catch-all cgi function. It takes the url passed to it, looks up the corresponding
 //path in the SPIFFS filesystem and if it exists, passes the file through. This simulates what a normal
@@ -25,7 +13,6 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData) {
 	FILE *file=connData->cgiData;
 	int len;
 	char buff[1024];
-	char acceptEncodingBuffer[64];
 
 	if (connData->conn==NULL) {
 		//Connection aborted. Clean up.

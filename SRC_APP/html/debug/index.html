@@ -39,19 +39,20 @@
 
   function init() {
     output = document.getElementById("output");
-    readFile( "../S/b.txt", function(){ readFile("../S/a.txt") } )
-    
-    websocket = new WebSocket(wsUri);
-    websocket.onopen = function(evt) { onOpen(evt) };
-    websocket.onclose = function(evt) { onClose(evt) };
-    websocket.onmessage = function(evt) { onMessage(evt) };
-    websocket.onerror = function(evt) { onError(evt) };
+    readFile( "../S/b.txt", function(){
+      readFile("../S/a.txt", function(){
+        websocket = new WebSocket(wsUri);
+        websocket.onopen = function(evt) { onOpen(evt) };
+        websocket.onclose = function(evt) { onClose(evt) };
+        websocket.onmessage = function(evt) { onMessage(evt) };
+        websocket.onerror = function(evt) { onError(evt) };
+      }) 
+    } )
   }
 
   function onOpen(evt)
   {
     writeToScreen("WS CONNECTED");
-
   }
 
   function onClose(evt)

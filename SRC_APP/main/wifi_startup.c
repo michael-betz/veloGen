@@ -1,6 +1,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
+#include "esp_spiffs.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -12,6 +13,7 @@
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
+#include "apps/sntp/sntp.h"
 
 
 #include "wifi_startup.h"
@@ -28,6 +30,12 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+            if (!sntp_enabled()){
+                ESP_LOGI(T, "Initializing SNTP");
+                sntp_setoperatingmode(SNTP_OPMODE_POLL);
+                sntp_setservername(0, "pool.ntp.org");
+                sntp_init();
+            }
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
             /* This is a workaround as ESP32 WiFi libs don't currently
@@ -60,4 +68,10 @@ void wifi_conn_init(void)
     // ESP_LOGI(T, "start the WIFI SSID:[%s] password:[%s]", CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
     ESP_ERROR_CHECK(esp_wifi_start());
     esp_wifi_set_ps( WIFI_PS_MODEM );
+}
+
+void wifi_disable(){
+    esp_wifi_stop();
+    // All done, unmount partition and disable SPIFFS
+    esp_vfs_spiffs_unregister(NULL);
 }

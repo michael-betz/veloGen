@@ -8,5 +8,6 @@
 extern EventGroupHandle_t wifi_event_group;
 
 extern void wifi_conn_init(void);
+extern void wifi_disable();
 
 #endif
