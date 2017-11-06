@@ -4,5 +4,6 @@
 #include "libesphttpd/httpd.h"
 
 CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData);
+CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData);
 
 #endif

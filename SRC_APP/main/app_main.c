@@ -69,15 +69,16 @@ static void debugWsConnect(Websock *ws) {
 const HttpdBuiltInUrl builtInUrls[]={
     {"/", cgiRedirect, "/index.html"},
 
-    {"/debug",         cgiRedirect, "/debug/index.html"},
-    {"/debug/ws.cgi",  cgiWebsocket, debugWsConnect },
+    {"/debug",         cgiRedirect,             "/debug/index.html" },
+    {"/debug/ws.cgi",  cgiWebsocket,            debugWsConnect },
 
-    {"/flash",         cgiRedirect,       "/flash/index.html" },
-    {"/flash/upload",  cgiUploadFirmware, &uploadParams },
-    {"/reboot",        cgiRebootFirmware, NULL },
+    {"/flash",         cgiRedirect,             "/flash/index.html" },
+    {"/flash/upload",  cgiUploadFirmware,       &uploadParams },
+    {"/reboot",        cgiRebootFirmware,       NULL },
 
-    {"/S/*",           cgiEspSPIFFSHook, NULL}, //Catch-all cgi function for the SPIFFS filesystem
-    {"*",              cgiEspFsHook,     NULL}, //Catch-all cgi function for the static filesystem
+    {"/LS",            cgiEspSPIFFSListHook,    NULL },
+    {"/S/*",           cgiEspSPIFFSHook,        NULL }, //Catch-all cgi function for the SPIFFS filesystem
+    {"*",              cgiEspFsHook,            NULL }, //Catch-all cgi function for the static filesystem
     {NULL, NULL, NULL}
 };
 
@@ -118,21 +119,17 @@ void app_main()
     //------------------------------
     // Set the clock / print time
     //------------------------------
-    // wait for time to be set
     // Set timezone to Eastern Standard Time and print local time
     // setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
     // tzset();
-    // time_t now = 0;
-    // struct tm timeinfo = { 0 };
-    // char strftime_buf[64];
-    // while(1) {
-    //     vTaskDelay(2000 / portTICK_PERIOD_MS);
-    //     time(&now);       
-    //     localtime_r(&now, &timeinfo);
-    //     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    //     ESP_LOGI(T, "UTC: %s", strftime_buf);
-    //     vTaskDelay( 10*60*1000 / portTICK_PERIOD_MS);
-    // }
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    char strftime_buf[64];
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    time(&now);       
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(T, "UTC: %s", strftime_buf);
 
     // while(1){
     //     // esp_sleep_enable_timer_wakeup(5 * 1000 * 1000);
