@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include "libesphttpd/esp.h"
 #include "esp_log.h"
+#include "esp_spiffs.h"
 #include "cJSON.h"
 
 #include "app_main.h"
@@ -21,7 +22,8 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData) {
 	struct stat st;
 	struct dirent *dir;
 	DIR *d;
-	cJSON *jRoot, *jFile;
+	cJSON *jRoot, *jFiles, *jFile;
+	size_t partTotal = 0, partUsed = 0;
 	int maxFiles = 32;
 	char *jsonString, lastFname[35], tempBuff[37];
 
@@ -38,20 +40,25 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData) {
 		ESP_LOGE(T,"Could not open root folder: %s", strerror(errno) );
 		return HTTPD_CGI_DONE;
 	}
+	
+    esp_spiffs_info(NULL, &partTotal, &partUsed);
 	jRoot = cJSON_CreateObject();
-		while ( (dir = readdir(d)) ) {
+	cJSON_AddNumberToObject( jRoot, "partTotal", partTotal );
+	cJSON_AddNumberToObject( jRoot, "partUsed",  partUsed );
+	cJSON_AddItemToObject(   jRoot, "files", 	 jFiles=cJSON_CreateObject() );
+	while ( (dir = readdir(d)) ) {
 		// Crude workaround for infinite loop with repeating filenames
 		if( strcmp( lastFname, dir->d_name) == 0 ) break;
 		if( !maxFiles-- ) break;
 		strcpy( lastFname, dir->d_name );
-		cJSON_AddItemToObject(   jRoot,  dir->d_name, jFile=cJSON_CreateObject());
+		cJSON_AddItemToObject( jFiles, dir->d_name, jFile=cJSON_CreateObject() );
 		cJSON_AddNumberToObject( jFile, "d_type", dir->d_type );
 		snprintf( tempBuff, 37, "/S/%s", dir->d_name );
 		if( stat(tempBuff, &st) >= 0 ){
 			cJSON_AddNumberToObject( jFile, "st_size",  st.st_size );
 			cJSON_AddNumberToObject( jFile, "st_atime", st.st_atime );
-			cJSON_AddNumberToObject( jFile, "st_mtime", st.st_mtime );
-			cJSON_AddNumberToObject( jFile, "st_ctime", st.st_ctime );
+			// cJSON_AddNumberToObject( jFile, "st_mtime", st.st_mtime );
+			// cJSON_AddNumberToObject( jFile, "st_ctime", st.st_ctime );
 		} else {
 			ESP_LOGE(T,"stat( %s ) failed: %s", tempBuff, strerror(errno) );
 		}
@@ -134,6 +141,11 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData) {
 		len = fwrite( p->buff, 1, p->buffLen, file );
 		if ( len != p->buffLen ){
 			ESP_LOGE(T, "%d = fwrite(), should be %d, err: %s", len, p->buffLen, strerror(errno) );
+			httpdStartResponse(connData, 400);
+			httpdHeader(connData, "Content-Type", "text/plain");
+			httpdEndHeaders(connData);
+			httpdSend(connData, strerror(errno), -1);
+			return HTTPD_CGI_DONE;
 		}
 		if (connData->post->len==connData->post->received) {
 			//We're done! Format a response.

@@ -76,7 +76,7 @@ const HttpdBuiltInUrl builtInUrls[]={
     {"/flash/upload",  cgiUploadFirmware,       &uploadParams },
     {"/reboot",        cgiRebootFirmware,       NULL },
 
-    {"/LS",            cgiEspSPIFFSListHook,    NULL },
+    {"/S",             cgiEspSPIFFSListHook,    NULL },
     {"/S/*",           cgiEspSPIFFSHook,        NULL }, //Catch-all cgi function for the SPIFFS filesystem
     {"*",              cgiEspFsHook,            NULL }, //Catch-all cgi function for the static filesystem
     {NULL, NULL, NULL}
