@@ -19,19 +19,15 @@
     return "?nocache="+Math.floor(Math.random()*100000).toString();
   }
 
-  function readFile( fName, doneFunction ){
+  function readFile( fName ){
     fName += nc();
     console.log("GETing: "+fName);
     xhr.open("GET", fName );
     xhr.onreadystatechange=function() {
       if (xhr.readyState==4 && xhr.status>=200 && xhr.status<300) {
-        xhr.responseText.split("\n").forEach( function(e) {
+        xhr.responseText.replace("\r","").split("\n").forEach( function(e) {
           writeToScreen( e );
-          window.scrollBy(0, 100);
         });
-      }
-      if( doneFunction ){
-        doneFunction();
       }
     }
     xhr.send();
@@ -39,36 +35,12 @@
 
   function init() {
     output = document.getElementById("output");
-    readFile( "../S/b.txt", function(){
-      readFile("../S/a.txt", function(){
-        websocket = new WebSocket(wsUri);
-        websocket.onopen = function(evt) { onOpen(evt) };
-        websocket.onclose = function(evt) { onClose(evt) };
-        websocket.onmessage = function(evt) { onMessage(evt) };
-        websocket.onerror = function(evt) { onError(evt) };
-      }) 
-    } )
-  }
-
-  function onOpen(evt)
-  {
-    writeToScreen("WS CONNECTED");
-  }
-
-  function onClose(evt)
-  {
-    writeToScreen("WS DISCONNECTED");
-  }
-
-  function onMessage(evt)
-  {
-    writeToScreen(evt.data);
-    window.scrollBy(0, 100);
-  }
-
-  function onError(evt)
-  {
-    writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data);
+    readFile( "../log.txt" );
+    websocket = new WebSocket(wsUri);
+    websocket.onopen    = function(evt) { writeToScreen("WS CONNECTED"); };
+    websocket.onclose   = function(evt) { writeToScreen("WS DISCONNECTED"); };
+    websocket.onmessage = function(evt) { writeToScreen(evt.data); };
+    websocket.onerror   = function(evt) { writeToScreen('ERROR: ' + evt.data); };
   }
 
   function writeToScreen(message)
@@ -77,6 +49,7 @@
     var html = ansi_up.ansi_to_html(message);
     pre.innerHTML = html;
     output.appendChild(pre);
+    window.scrollBy(0, 100);
   }
 
   window.addEventListener("load", init, false);

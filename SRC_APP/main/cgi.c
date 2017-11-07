@@ -10,6 +10,7 @@
 #include "esp_spiffs.h"
 #include "cJSON.h"
 
+#include "web_console.h"
 #include "app_main.h"
 #include "cgi.h"
 
@@ -24,7 +25,7 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData) {
 	DIR *d;
 	cJSON *jRoot, *jFiles, *jFile;
 	size_t partTotal = 0, partUsed = 0;
-	int maxFiles = 32;
+	// int maxFiles = 32;
 	char *jsonString, lastFname[35], tempBuff[37];
 
 	if (connData->conn==NULL) {
@@ -47,9 +48,9 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData) {
 	cJSON_AddNumberToObject( jRoot, "partUsed",  partUsed );
 	cJSON_AddItemToObject(   jRoot, "files", 	 jFiles=cJSON_CreateObject() );
 	while ( (dir = readdir(d)) ) {
-		// Crude workaround for infinite loop with repeating filenames
-		if( strcmp( lastFname, dir->d_name) == 0 ) break;
-		if( !maxFiles-- ) break;
+		// // Crude workaround for infinite loop with repeating filenames
+		// if( strcmp( lastFname, dir->d_name) == 0 ) break;
+		// if( !maxFiles-- ) break;
 		strcpy( lastFname, dir->d_name );
 		cJSON_AddItemToObject( jFiles, dir->d_name, jFile=cJSON_CreateObject() );
 		cJSON_AddNumberToObject( jFile, "d_type", dir->d_type );
@@ -57,8 +58,8 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSListHook(HttpdConnData *connData) {
 		if( stat(tempBuff, &st) >= 0 ){
 			cJSON_AddNumberToObject( jFile, "st_size",  st.st_size );
 			cJSON_AddNumberToObject( jFile, "st_atime", st.st_atime );
-			// cJSON_AddNumberToObject( jFile, "st_mtime", st.st_mtime );
-			// cJSON_AddNumberToObject( jFile, "st_ctime", st.st_ctime );
+			cJSON_AddNumberToObject( jFile, "st_mtime", st.st_mtime );
+			cJSON_AddNumberToObject( jFile, "st_ctime", st.st_ctime );
 		} else {
 			ESP_LOGE(T,"stat( %s ) failed: %s", tempBuff, strerror(errno) );
 		}
@@ -160,4 +161,52 @@ CgiStatus ICACHE_FLASH_ATTR cgiEspSPIFFSHook(HttpdConnData *connData) {
 			return HTTPD_CGI_MORE;
 		}	
 	}
+}
+
+
+// Print a pretty hex-dump on the debug out
+static void hexDump( uint8_t *buffer, uint16_t nBytes ){
+    for( uint16_t i=0; i<nBytes; i++ ){
+        if( (nBytes>16) && ((i%16)==0) ){
+            printf("\n    %04x: ", i);
+        }
+        printf("%02x ", *buffer++);
+    }
+    printf("\n");
+}
+
+//-----------------------------------------
+// GET the log-buffer from RTC-mem
+//-----------------------------------------
+CgiStatus ICACHE_FLASH_ATTR cgiEspRTC_LOG(HttpdConnData *connData) {
+	static const char *logBuffEnd = rtcLogBuffer + LOG_FILE_SIZE - 1;
+	if (connData->conn==NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+	//-----------------------------------------
+	// First call, send oldest to end
+	//-----------------------------------------
+	// Initialize state variables
+	if ( connData->cgiData == NULL ) {
+		connData->cgiData = (void*)1;
+		httpdStartResponse(connData, 200);
+		httpdHeader(connData, "content-type", "text/plain");
+		httpdEndHeaders(connData);
+		// rtcLogWritePtr is on the oldest entry. Send [oldest:]
+		httpdSend( connData, rtcLogWritePtr, logBuffEnd-rtcLogWritePtr+1 );
+		// printf("log1:\n");
+		// hexDump( (uint8_t*)rtcLogWritePtr, logBuffEnd-rtcLogWritePtr+1 );
+		return HTTPD_CGI_MORE;
+	} else {
+	//-----------------------------------------
+	// Second call, send beginning to newest
+	//-----------------------------------------		
+		// rtcLogWritePtr is on the oldest entry. Send [:newest]
+		httpdSend( connData, rtcLogBuffer, rtcLogWritePtr-rtcLogBuffer );
+		// printf("log2:\n");
+		// hexDump( (uint8_t*)rtcLogBuffer, rtcLogWritePtr-rtcLogBuffer );
+		return HTTPD_CGI_DONE;
+	}
+
 }

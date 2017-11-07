@@ -11,43 +11,61 @@
 
 static const char *T = "WEBCONSOLE";
 
-// writes string to spiffs in /S/a.txt
-// if a.txt > LOG_FILE_SIZE the rename it to b.txt
-// (overwrite it if it already exists)
-void writeToLogFile( const char* str ){
-    FILE *f = NULL;
-    struct stat st;
-    int ret;
-    if( f == NULL ){
-        if( (f = fopen("/S/a.txt", "a")) == NULL ){
-            // ESP_LOGE(T, "Open /a.txt failed: %s", strerror(errno) );
-            goto writeToLogFileFinally;
-        }
-    }
-    if( (ret=fwrite(str, 1, strlen(str), f)) <= 0 ){
-        // ESP_LOGE(T, "Write failed: %s", strerror(errno) );
-        goto writeToLogFileFinally;
-    }
-    fflush( f );
-    // ESP_LOGI(T,"Wrote %d bytes", ret);
+RTC_DATA_ATTR char rtcLogBuffer[LOG_FILE_SIZE];
+RTC_DATA_ATTR char *rtcLogWritePtr = rtcLogBuffer;
+
+// // writes string to spiffs in /S/a.txt
+// // if a.txt > LOG_FILE_SIZE the rename it to b.txt
+// // (overwrite it if it already exists)
+// // Warning SPIFFS can slow down the whole ESP, if it's full
+// // It's propably not a good idea to abuse the flash memory like that
+// void writeToLogFile( const char* str ){
+//     FILE *f = NULL;
+//     struct stat st;
+//     int ret;
+//     if( f == NULL ){
+//         if( (f = fopen("/S/a.txt", "a")) == NULL ){
+//             // ESP_LOGE(T, "Open /a.txt failed: %s", strerror(errno) );
+//             goto writeToLogFileFinally;
+//         }
+//     }
+//     if( (ret=fwrite(str, 1, strlen(str), f)) <= 0 ){
+//         // ESP_LOGE(T, "Write failed: %s", strerror(errno) );
+//         goto writeToLogFileFinally;
+//     }
+//     fflush( f );
+//     // ESP_LOGI(T,"Wrote %d bytes", ret);
     
-    // Get size of /a.txt
-    if ( stat("/S/a.txt", &st) == 0 ) {
-        // Check if a.txt is over the size limit
-        // ESP_LOGI(T, "size of a.txt: %d bytes", (int)st.st_size);
-        if( st.st_size > LOG_FILE_SIZE ){
-            // ESP_LOGI(T, "renaming a.txt to b.txt");
-            fclose( f );
-            f = NULL;
-            // delete b.txt if it exists
-            unlink("/S/b.txt");
-            // rename a.txt to b.txt
-            rename("/S/a.txt", "/S/b.txt");
+//     // Get size of /a.txt
+//     if ( stat("/S/a.txt", &st) == 0 ) {
+//         // Check if a.txt is over the size limit
+//         // ESP_LOGI(T, "size of a.txt: %d bytes", (int)st.st_size);
+//         if( st.st_size > LOG_FILE_SIZE ){
+//             // ESP_LOGI(T, "renaming a.txt to b.txt");
+//             fclose( f );
+//             f = NULL;
+//             // delete b.txt if it exists
+//             unlink("/S/b.txt");
+//             // rename a.txt to b.txt
+//             rename("/S/a.txt", "/S/b.txt");
+//         }
+//     }
+// writeToLogFileFinally:
+//     fclose( f );
+//     f = NULL;
+// }
+
+// writes string to rolling log-buffer in RTC memory
+void writeToLogRTC( const char* str ){
+    static const char *logBuffEnd = rtcLogBuffer + LOG_FILE_SIZE - 1;
+    while( *str ){
+        *rtcLogWritePtr = *str++;
+        if ( rtcLogWritePtr >= logBuffEnd ){
+            rtcLogWritePtr = rtcLogBuffer;
+        } else {
+            rtcLogWritePtr++;
         }
     }
-writeToLogFileFinally:
-    fclose( f );
-    f = NULL;
 }
 
 int wsDebugPrintf( const char *format, va_list arg ){
@@ -61,8 +79,10 @@ int wsDebugPrintf( const char *format, va_list arg ){
     cgiWebsockBroadcast("/debug/ws.cgi", charBuffer, charLen, WEBSOCK_FLAG_NONE);
     // Output to UART as well
     printf( "%s", charBuffer );
-    // Output to logfile as well
-    writeToLogFile( charBuffer );
+    // // Output to logfile in SPIFFS
+    // writeToLogFile( charBuffer );
+    // Output to logbuffer in RTC mem
+    writeToLogRTC( charBuffer );
     return charLen;
 }
 

@@ -76,6 +76,7 @@ const HttpdBuiltInUrl builtInUrls[]={
     {"/flash/upload",  cgiUploadFirmware,       &uploadParams },
     {"/reboot",        cgiRebootFirmware,       NULL },
 
+    {"/log.txt",       cgiEspRTC_LOG,           NULL },
     {"/S",             cgiEspSPIFFSListHook,    NULL },
     {"/S/*",           cgiEspSPIFFSHook,        NULL }, //Catch-all cgi function for the SPIFFS filesystem
     {"*",              cgiEspFsHook,            NULL }, //Catch-all cgi function for the static filesystem
@@ -88,6 +89,7 @@ void app_main()
     // Enable log file
     //------------------------------
     initFs();
+    memset( rtcLogBuffer, '\r', LOG_FILE_SIZE );
     esp_log_set_vprintf( wsDebugPrintf );
     
     initVelogen();
@@ -125,7 +127,7 @@ void app_main()
     time_t now = 0;
     struct tm timeinfo = { 0 };
     char strftime_buf[64];
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
     time(&now);       
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
