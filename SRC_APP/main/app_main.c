@@ -45,7 +45,7 @@
 #include "wifi_startup.h"
 #include "cgi.h"
 #include "web_console.h"
-
+#include "velogen_hw.h"
 
 static const char *T = "MAIN_APP";
 
@@ -144,6 +144,9 @@ void app_main()
     //     ESP_ERROR_CHECK(esp_wifi_start());
     //     gpio_set_level( GPIO_LED, 1 );
     // }
+
+    ESP_LOGI(T,"Starting ADC monitoring task");
+    xTaskCreate(&adc_monitor_task, "adc_monitor_task", 2048, NULL, 5, NULL);
     
     // wifi_disable();
     // esp_deep_sleep_start();

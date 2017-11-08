@@ -8,6 +8,7 @@
 #include "libesphttpd/esp.h"
 #include "libesphttpd/cgiwebsocket.h"
 #include "web_console.h"
+#include "app_main.h"
 
 static const char *T = "WEBCONSOLE";
 
@@ -71,18 +72,19 @@ void writeToLogRTC( const char* str ){
 int wsDebugPrintf( const char *format, va_list arg ){
     static char charBuffer[512];
     static  int charLen;
-    charLen = vsprintf( charBuffer, format, arg );
+    charBuffer[0] = WS_ID_WEBCONSOLE;
+    charLen = vsprintf( &charBuffer[1], format, arg );
     if( charLen <= 0 ){
         return 0;
     }
     charBuffer[511] = '\0';
-    cgiWebsockBroadcast("/debug/ws.cgi", charBuffer, charLen, WEBSOCK_FLAG_NONE);
+    cgiWebsockBroadcast("/debug/ws.cgi", charBuffer, charLen+1, WEBSOCK_FLAG_NONE);
     // Output to UART as well
-    printf( "%s", charBuffer );
+    printf( "%s", &charBuffer[1] );
     // // Output to logfile in SPIFFS
     // writeToLogFile( charBuffer );
     // Output to logbuffer in RTC mem
-    writeToLogRTC( charBuffer );
+    writeToLogRTC( &charBuffer[1] );
     return charLen;
 }
 

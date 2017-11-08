@@ -39,7 +39,12 @@
     websocket = new WebSocket(wsUri);
     websocket.onopen    = function(evt) { writeToScreen("WS CONNECTED"); };
     websocket.onclose   = function(evt) { writeToScreen("WS DISCONNECTED"); };
-    websocket.onmessage = function(evt) { writeToScreen(evt.data); };
+    websocket.onmessage = function(evt) { 
+      console.log(evt.data);
+      if(evt.data[0]=='a'){ 
+        writeToScreen(evt.data.slice(1)); 
+      } 
+    };
     websocket.onerror   = function(evt) { writeToScreen('ERROR: ' + evt.data); };
   }
 

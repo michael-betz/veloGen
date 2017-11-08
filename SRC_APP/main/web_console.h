@@ -5,7 +5,7 @@
 #define WEBCON_MODE 0	// 0 = spiffs (/S/a.txt /s/b.txt)  1 = RTC mem
 
 // Rolling buffer size for log entries in bytes
-#define LOG_FILE_SIZE (1950)
+#define LOG_FILE_SIZE (4000)
 
 // Initialize and mount SPIFFS (format if needed)
 // run at boot time

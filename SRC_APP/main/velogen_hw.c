@@ -3,6 +3,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "libesphttpd/esp.h"
+#include "libesphttpd/cgiwebsocket.h"
+#include "cJSON.h"
 #include "driver/ledc.h"
 #include "driver/sigmadelta.h"
 #include "driver/adc.h"
@@ -58,10 +61,10 @@ void initVelogen(){
 
 }
 
-static void adc_monitor_task(void *pvParameters)
-{
-    // char tempBuff[33];
+void adc_monitor_task(void *pvParameters){
     int32_t vBattVal, iBattVal, i;
+    cJSON *jRoot;
+    char *jsonString;
     while (true) {
         vBattVal = 0;
         iBattVal = 0;
@@ -77,13 +80,20 @@ static void adc_monitor_task(void *pvParameters)
         if ( gpio_get_level( GPIO_IBATT_SIGN ) ){
             iBattVal *= -1;
         }
-        ESP_LOGI( T, "%6d mV,  %6d mA", vBattVal, iBattVal );
+        // ESP_LOGI( T, "%6d mV,  %6d mA", vBattVal, iBattVal );
+        jRoot = cJSON_CreateObject();
+        cJSON_AddNumberToObject( jRoot, "vBattVal", vBattVal );
+        cJSON_AddNumberToObject( jRoot, "iBattVal", iBattVal );
+        jsonString = cJSON_Print( jRoot );
+        cgiWebsockBroadcast("/debug/ws.cgi", jsonString, strlen(jsonString), WEBSOCK_FLAG_NONE);
+        free( jsonString );
+        cJSON_Delete( jRoot );
         // if ( client != 0 ){
         //     itoa( vBattVal, tempBuff, 10);
         //     mqtt_publish(client, "veloGen/vbatt", tempBuff, strlen(tempBuff), 0, 0);
         //     itoa( iBattVal, tempBuff, 10);
         //     mqtt_publish(client, "veloGen/ibatt", tempBuff, strlen(tempBuff), 0, 0);
         // }
-        vTaskDelay( 50 );
+        vTaskDelay( 300/portTICK_PERIOD_MS );
     }
 }

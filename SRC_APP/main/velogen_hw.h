@@ -16,5 +16,6 @@
 #define STARTUP_DUTY_VALUE  50
 
 extern void initVelogen();
+extern void adc_monitor_task(void *pvParameters);
 
 #endif

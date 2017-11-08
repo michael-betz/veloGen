@@ -175,38 +175,61 @@ static void hexDump( uint8_t *buffer, uint16_t nBytes ){
     printf("\n");
 }
 
+typedef struct {
+	int state;
+	char *rPtr;
+	int nBytesLeft;
+}cgiRtcLogState_t;
 //-----------------------------------------
 // GET the log-buffer from RTC-mem
 //-----------------------------------------
 CgiStatus ICACHE_FLASH_ATTR cgiEspRTC_LOG(HttpdConnData *connData) {
+	cgiRtcLogState_t* state = (cgiRtcLogState_t*)connData->cgiData;
+	int nSend;
 	static const char *logBuffEnd = rtcLogBuffer + LOG_FILE_SIZE - 1;
 	if (connData->conn==NULL) {
 		//Connection aborted. Clean up.
 		return HTTPD_CGI_DONE;
 	}
-	//-----------------------------------------
-	// First call, send oldest to end
-	//-----------------------------------------
 	// Initialize state variables
-	if ( connData->cgiData == NULL ) {
-		connData->cgiData = (void*)1;
+	if ( state == NULL ) {
+		state = malloc( sizeof(cgiRtcLogState_t) );
+		state->state = 0;
+		//-----------------------------------------
+		// First call, send oldest to end
+		//-----------------------------------------
+		state->rPtr = rtcLogWritePtr;
+		state->nBytesLeft = logBuffEnd-rtcLogWritePtr+1;
+		connData->cgiData = state;
 		httpdStartResponse(connData, 200);
 		httpdHeader(connData, "content-type", "text/plain");
 		httpdEndHeaders(connData);
-		// rtcLogWritePtr is on the oldest entry. Send [oldest:]
-		httpdSend( connData, rtcLogWritePtr, logBuffEnd-rtcLogWritePtr+1 );
-		// printf("log1:\n");
-		// hexDump( (uint8_t*)rtcLogWritePtr, logBuffEnd-rtcLogWritePtr+1 );
+	} 
+	nSend = MIN( state->nBytesLeft, 1024 );
+	httpdSend( connData, state->rPtr, nSend );
+	// printf("state %d, sending:", state->state);
+	// hexDump( (uint8_t*)state->rPtr, nSend );
+	state->rPtr += nSend;
+	state->nBytesLeft -= nSend;
+	if( state->nBytesLeft > 0 ){
 		return HTTPD_CGI_MORE;
 	} else {
-	//-----------------------------------------
-	// Second call, send beginning to newest
-	//-----------------------------------------		
+		// done
+		switch( state->state ){
+		case 0:
+		//-----------------------------------------
+		// Second call, send beginning to newest
+		//-----------------------------------------		
 		// rtcLogWritePtr is on the oldest entry. Send [:newest]
-		httpdSend( connData, rtcLogBuffer, rtcLogWritePtr-rtcLogBuffer );
-		// printf("log2:\n");
-		// hexDump( (uint8_t*)rtcLogBuffer, rtcLogWritePtr-rtcLogBuffer );
-		return HTTPD_CGI_DONE;
+			state->rPtr = rtcLogBuffer;
+			state->nBytesLeft = rtcLogWritePtr-rtcLogBuffer;
+			state->state++;
+			return HTTPD_CGI_MORE;
+		case 1:
+		default:
+			free( state );
+			state = NULL;
+			return HTTPD_CGI_DONE;
+		}
 	}
-
 }

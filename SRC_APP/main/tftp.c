@@ -9,6 +9,7 @@
 #include "app_main.h"
 #include "wifi_startup.h"
 #include "tftp.h"
+#include "app_main.h"
 
 static const char *T = "TFTP";
 

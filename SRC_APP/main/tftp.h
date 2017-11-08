@@ -10,8 +10,6 @@
 #define ACK_PACKET_LEN 		4
 #define FILE_NAME_LEN		64
 
-#define MIN(a,b) ((a>b)?b:a)
-
 enum OPCODE {
 	TFTP_OPCODE_RRQ   = 1, // Read request
 	TFTP_OPCODE_WRQ   = 2, // Write request
