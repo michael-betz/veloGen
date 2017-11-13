@@ -67,6 +67,7 @@ static void debugWsConnect(Websock *ws) {
 // Setup webserver
 //------------------------------
 const HttpdBuiltInUrl builtInUrls[]={
+    // {"*", cgiRedirectApClientToHostname, HOSTNAME},
     {"/", cgiRedirect, "/index.html"},
 
     {"/debug",         cgiRedirect,             "/debug/index.html" },

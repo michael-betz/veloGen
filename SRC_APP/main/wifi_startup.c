@@ -20,16 +20,32 @@
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
 
+#include "libesphttpd/esp.h"
+#include "libesphttpd/captdns.h"
+
 #include "wifi_startup.h"
 
 static const char *T = "WIFI_STARTUP";
 EventGroupHandle_t wifi_event_group;
 
+typedef enum {
+    WIFI_CON_TO_AP_MODE,
+    WIFI_CONNECTED,
+    WIFI_HOTSPOT_MODE,
+    WIFI_OFF_MODE
+}wifiState_t;
+
+wifiState_t wifiState=WIFI_CON_TO_AP_MODE;
+
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {  
     switch(event->event_id) {
         case SYSTEM_EVENT_STA_START:
-            ESP_ERROR_CHECK( tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, HOSTNAME) );
+            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, HOSTNAME);
+            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP,  HOSTNAME);
+            tcpip_adapter_dns_info_t dnsIp;
+            ipaddr_aton("192.168.4.1", &dnsIp.ip );
+            ESP_ERROR_CHECK( tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_AP, TCPIP_ADAPTER_DNS_MAIN, &dnsIp) );
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
@@ -54,6 +70,9 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 }
 
 char *readFileDyn( char* fName, int *fSize ){
+    // opens the file fName and returns it as dynamically allocated char*
+    // if fSize is not NULL, copies the number of bytes read there
+    // dont forget to fall free() on the char* result
     FILE *f = fopen(fName, "rb");
     if ( !f ) {
         ESP_LOGE( T, " fopen( %s ) failed: %s", fName, strerror(errno) );
@@ -77,103 +96,182 @@ char *readFileDyn( char* fName, int *fSize ){
 }
 
 cJSON *readJsonDyn( char* fName ){
+    // opens the json file `fName` and returns it as cJSON*
+    // don't forget to call cJSON_Delete() on it
     cJSON *root;
     char *txtData = readFileDyn( fName, NULL );
     if( !txtData ){
         return NULL;
     }
-    root = cJSON_Parse( txtData );
+    if( !(root = cJSON_Parse( txtData )) ){
+        ESP_LOGE(T,"No data in %s", fName );
+    }
     free( txtData );
     return root;
 }
 
-#ifndef cJSON_ArrayForEach
-    /* Macro for iterating over an array or object */
-    #define cJSON_ArrayForEach(element, array) for(element = (array != NULL) ? (array)->child : NULL; element != NULL; element = element->next)
-#endif
-
-void wifiConnectionTask(void *pvParameters){
-    int i;
-    uint16_t foundNaps=0;
-    wifi_ap_record_t *foundAps=NULL, *currAp=NULL;
+int getKnownApPw( wifi_ap_record_t *foundAps, uint16_t foundNaps, uint8_t *ssid, uint8_t *pw ){
+    // Goes through wifi scan result (foundAps) and looks for a known wifi (from json)
+    // If found returns 0 and copies data into *ssid and *pw
+    // If no goo done is found, returns -1
+    //---------------------------------------------------
+    // See if there are any known wifis
+    //---------------------------------------------------
+    // Index json file by key (ssid)
     cJSON *jRoot=NULL, *jWifi=NULL, *jTemp=NULL;
-    wifi_config_t wifi_config = {
-        .sta = {
-            .scan_method = WIFI_ALL_CHANNEL_SCAN,
+    wifi_ap_record_t *currAp=NULL;
+    int i;
+    ESP_LOGI(T, "\n------------------ Found %d wifis --------------------", foundNaps );
+    for( i=0,currAp=foundAps; i<foundNaps; i++ ){
+        ESP_LOGI(T, "ch: %2d, ssid: %16s, bssid: %02x:%02x:%02x:%02x:%02x:%02x, rssi: %d", currAp->primary, (char*)currAp->ssid, currAp->bssid[0], currAp->bssid[1], currAp->bssid[2], currAp->bssid[3], currAp->bssid[4], currAp->bssid[5], currAp->rssi );
+        currAp++;
+    }
+    if( (jRoot = readJsonDyn("/S/knownWifis.json")) ){
+        // Go through all found APs, use ssid as key and try to get item from json
+        for( i=0,currAp=foundAps; i<foundNaps; i++ ){
+            jWifi = cJSON_GetObjectItem( jRoot, (char*)currAp->ssid);
+            currAp++;
+            if ( !jWifi ){
+                continue;
+            }
+            if( !(jTemp = cJSON_GetObjectItem( jWifi, "type" )) || (jTemp->type!=cJSON_String) ){
+                ESP_LOGE(T, "Wifi type undefined");
+                continue;
+            }
+            if( strcmp(jTemp->valuestring, "full") != 0 ){
+                ESP_LOGE(T, "Unsupported Wifi type");
+                continue;
+            }
+            //---------------------------------------------------
+            // Found a known good WIFI, connect to it ...
+            //---------------------------------------------------
+            ESP_LOGW(T,"match: %s, trying to connect ...", jWifi->string );
+            strcpy( (char*)ssid, jWifi->string );
+            if( !(jTemp = cJSON_GetObjectItem( jWifi, "pw" )) || (jTemp->type!=cJSON_String) ){
+                ESP_LOGE(T, "Wifi pw undefined");
+                strcpy( (char*)pw,   "" );
+            } else {
+                strcpy( (char*)pw,   jTemp->valuestring );
+            }
+            cJSON_Delete( jRoot ); jRoot = NULL;
+            return 0;
         }
+        cJSON_Delete( jRoot ); jRoot = NULL;
+    }
+    return -1;
+}
+
+void conToApMode(){
+    // goes through all steps needed to connect to a known wifi.
+    // if succesfuls, sets wifiState to WIFI_CONNECTED
+    int ret=0;
+    uint16_t foundNaps=0;
+    wifi_ap_record_t* foundAps = NULL;
+    wifi_config_t wifi_config = {
+        .sta.scan_method = WIFI_ALL_CHANNEL_SCAN,
+        .sta.bssid_set = 0,
+        .sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL
     };
+    ESP_ERROR_CHECK( esp_wifi_stop() );
     ESP_ERROR_CHECK( esp_wifi_set_mode( WIFI_MODE_STA ) );
     ESP_ERROR_CHECK( esp_wifi_set_config( ESP_IF_WIFI_STA, &wifi_config ) );
     ESP_ERROR_CHECK( esp_wifi_start() );
-    while(1){
-        //---------------------------------------------------
-        // Scan for wifis around
-        //---------------------------------------------------
-        wifi_scan_config_t scanConfig = { //Define a scan filter
-            .ssid = 0,
-            .bssid = 0,
-            .channel = 0,
-            .show_hidden = false,
-            .scan_type = WIFI_SCAN_TYPE_ACTIVE
-        };
-        ESP_ERROR_CHECK( esp_wifi_scan_start( &scanConfig, 1 ) );
-        // BLocks for 1500 ms
-        ESP_ERROR_CHECK( esp_wifi_scan_get_ap_num( &foundNaps ) );
-        // copy AP data in local memory
-        foundAps = (wifi_ap_record_t*) malloc( sizeof(wifi_ap_record_t)*foundNaps );
-        assert( foundNaps );
-        ESP_ERROR_CHECK( esp_wifi_scan_get_ap_records( &foundNaps, foundAps ) );
-        ESP_LOGD(T, "\n--------------------- %d wifis -----------------------", foundNaps );        
-        for( i=0,currAp=foundAps; i<foundNaps; i++ ){
-            ESP_LOGD(T, "ch: %2d, ssid: %16s, bssid: %02x:%02x:%02x:%02x:%02x:%02x, rssi: %d", currAp->primary, (char*)currAp->ssid, currAp->bssid[0], currAp->bssid[1], currAp->bssid[2], currAp->bssid[3], currAp->bssid[4], currAp->bssid[5], currAp->rssi );
-            currAp++;
-        }
-        //---------------------------------------------------
-        // See if there are any known wifis
-        //---------------------------------------------------
-        // iterate trhough all keys of json file
-        // char *current_key=NULL;
-        // if( (jRoot = readJsonDyn("/S/knownWifis.json")) ){
-        //     cJSON_ArrayForEach(jWifi, jRoot) {
-        //         if ( (current_key=jWifi->string) ){
-        //             for( i=0,currAp=foundAps; i<foundNaps; i++ ){
-        //                 if ( strcmp( current_key, (char*)currAp->ssid ) == 0 ){
-        //                     ESP_LOGI(T,"match: %s, %s", current_key, currAp->ssid);
-        //                 }
-        //                 currAp++;
-        //             }
-        //         }
-        //     }
-        //     free( jRoot );
-        // }
-        // Index json file by key (ssid)
-        if( (jRoot = readJsonDyn("/S/knownWifis.json")) ){
-            for( i=0,currAp=foundAps; i<foundNaps; i++ ){
-                if ( (jWifi = cJSON_GetObjectItem( jRoot, (char*)currAp->ssid)) ){
-                    break;
-                }
-                currAp++;
-            }
-            if( jWifi ){
-                if( !(jTemp = cJSON_GetObjectItem( jWifi, "pw" )) || (jTemp->type!=cJSON_String) ){
-                    ESP_LOGE(T, "Wifi pw undefined");
-                }
-                ESP_LOGW(T,"match: %s, trying to connect ...", jWifi->string );
-                strcpy( (char*)wifi_config.sta.ssid,     jWifi->string );
-                strcpy( (char*)wifi_config.sta.password, jTemp->valuestring );
-                ESP_ERROR_CHECK( esp_wifi_stop() );
-                ESP_ERROR_CHECK( esp_wifi_set_config( ESP_IF_WIFI_STA, &wifi_config ) );
-                ESP_ERROR_CHECK( esp_wifi_start() );
-                cJSON_Delete( jRoot );
-                free( foundAps );
-                break;
-            } else {
-                ESP_LOGW(T,"No known wifi found");
-            }
-            cJSON_Delete( jRoot );
-        }
-        free( foundAps );
+    //---------------------------------------------------
+    // Do a wifi scan and see what is around
+    //---------------------------------------------------
+    wifi_scan_config_t scanConfig = {
+        .channel = 0,
+        .show_hidden = false,
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE
+    };
+    ESP_ERROR_CHECK( esp_wifi_scan_start( &scanConfig, 1 ) );
+    // ... bLocks for 1500 ms ...
+    ESP_ERROR_CHECK( esp_wifi_scan_get_ap_num( &foundNaps ) );
+    // copy AP data in local memory
+    assert( (foundAps = (wifi_ap_record_t*) malloc( sizeof(wifi_ap_record_t)*foundNaps )) );
+    ESP_ERROR_CHECK( esp_wifi_scan_get_ap_records( &foundNaps, foundAps ) );
+    // Compare scan result against known wifis from .json file
+    ret = getKnownApPw( foundAps, foundNaps, wifi_config.sta.ssid, wifi_config.sta.password );
+    free( foundAps ); foundAps = NULL;
+    if( ret < 0 ){
+        // no useful APs found
+        return;
     }
+    ESP_ERROR_CHECK( esp_wifi_stop() );
+    ESP_ERROR_CHECK( esp_wifi_set_config( ESP_IF_WIFI_STA, &wifi_config ) );
+    ESP_ERROR_CHECK( esp_wifi_start() );
+    // Wait up to 10 s for an IP
+    xEventGroupWaitBits( wifi_event_group, CONNECTED_BIT, pdFALSE, pdTRUE, 10000/portTICK_PERIOD_MS );
+    // Check if we are connected
+    if( xEventGroupGetBits( wifi_event_group ) & CONNECTED_BIT ){
+        ESP_LOGI(T,"Conected to an AP. All is good :)");
+        wifiState = WIFI_CONNECTED;
+    }
+}
+
+void startHotspotMode(){
+    wifi_config_t wifi_config = {
+        .ap.ssid = HOSTNAME,
+        .ap.password = "",
+        .ap.channel = 5,
+        .ap.authmode = WIFI_AUTH_OPEN,
+        .ap.max_connection = 4,
+        .ap.beacon_interval = 100
+    };
+    ESP_LOGI(T, "WIFI_HOTSPOT_MODE");
+    ESP_ERROR_CHECK( esp_wifi_stop() );
+    ESP_ERROR_CHECK( esp_wifi_set_mode( WIFI_MODE_AP ) );
+    ESP_ERROR_CHECK( esp_wifi_set_config( ESP_IF_WIFI_AP, &wifi_config ) );
+    ESP_ERROR_CHECK( esp_wifi_start() );
+}
+
+void wifiConnectionTask(void *pvParameters){
+    int wifiTry=0;   
+    captdnsInit();
+    while(1){
+        switch( wifiState ){
+            case WIFI_CON_TO_AP_MODE:
+                //---------------------------------------------------
+                // Connect to another access point as client
+                //---------------------------------------------------
+                conToApMode();
+                if( ++wifiTry >= N_WIFI_TRYS ){
+                    wifiTry = 0;
+                    ESP_LOGW(T,"No known Wifis found, switching to hotspot mode");
+                    wifiState = WIFI_HOTSPOT_MODE;
+                }    
+                break;
+
+            case WIFI_CONNECTED:
+                //---------------------------------------------------
+                // Connected and happy, do nothing
+                //---------------------------------------------------
+                if( xEventGroupGetBits( wifi_event_group ) & CONNECTED_BIT ){
+                    vTaskDelay( 10000/portTICK_PERIOD_MS );
+                    continue;
+                } else {
+                    ESP_LOGW(T, "Wifi connection lost !!! reconnecting ...");
+                    wifiState = WIFI_CON_TO_AP_MODE;
+                }
+                break;
+
+            case WIFI_HOTSPOT_MODE:
+                //---------------------------------------------------
+                // Start an soft access point
+                //---------------------------------------------------
+                startHotspotMode();
+                vTaskDelay( 60*60*1000/portTICK_PERIOD_MS );
+                break;
+                
+            case WIFI_OFF_MODE:
+                //---------------------------------------------------
+                // Disconnected and happy, do nothing
+                //---------------------------------------------------
+                ESP_LOGD(T, "WIFI_OFF_MODE");
+                vTaskDelay( 10000/portTICK_PERIOD_MS );
+                break;
+        } // switch
+    } // while(1)
     vTaskDelete( NULL );
 }
 

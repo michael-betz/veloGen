@@ -3,6 +3,7 @@
 
 #include "freertos/event_groups.h"
 
+#define N_WIFI_TRYS 	3
 #define HOSTNAME 		"velogen"
 #define CONNECTED_BIT 	BIT0
 extern EventGroupHandle_t wifi_event_group;
