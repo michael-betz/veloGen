@@ -5,11 +5,13 @@
 <script language="javascript" type="text/javascript">
 	var wsUri = "ws://"+window.location.host+"/debug/ws.cgi";
 	// var wsUri = "ws://velogen/debug/ws.cgi";
-	var outV, outI, state, gV, gI;
+	var outV, outI, state, gV, gI, wheelCnt;
 
 	function init() {
 	    outV = document.getElementById("outputV");
 	    outI = document.getElementById("outputI");
+	    wheelCnt = document.getElementById("wheelCntId");
+	    wheelCnt.innerHTML = "xxx";
 		var gV = new RadialGauge({ 
 			renderTo: "outputV",
 			width: 200,
@@ -74,6 +76,7 @@
 				// outI.innerHTML = state["iBattVal"] + " mA";
 				gV.value = state["vBattVal"]/1000;
 				gI.value = state["iBattVal"]/1000;
+				wheelCnt.innerHTML = "<b>Cnt: " + state["wheelCnt"]+"</b>";
 			}
 	    };
 	    websocket.onerror   = function(evt) { outV.innerHTML = 'ERROR: ' + evt.data; };
@@ -94,6 +97,7 @@ VeloGen = IOT bike computer ...
 
 <canvas id="outputV"></canvas>
 <canvas id="outputI"></canvas>
+<p id="wheelCntId"></p>
 
 </div>
 </body></html>

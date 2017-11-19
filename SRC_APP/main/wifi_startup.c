@@ -13,6 +13,9 @@
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 #include "esp_spiffs.h"
+#include "esp_sleep.h"
+
+#include "driver/rtc_io.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -23,18 +26,11 @@
 #include "libesphttpd/esp.h"
 #include "libesphttpd/captdns.h"
 
+#include "velogen_hw.h"
 #include "wifi_startup.h"
 
 static const char *T = "WIFI_STARTUP";
 EventGroupHandle_t wifi_event_group;
-
-typedef enum {
-    WIFI_CON_TO_AP_MODE,
-    WIFI_CONNECTED,
-    WIFI_HOTSPOT_MODE,
-    WIFI_OFF_MODE
-}wifiState_t;
-
 wifiState_t wifiState=WIFI_CON_TO_AP_MODE;
 
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
@@ -50,6 +46,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+            gpio_set_level( GPIO_LED, 1 );
             if (!sntp_enabled()){
                 ESP_LOGI(T, "Initializing SNTP");
                 sntp_setoperatingmode(SNTP_OPMODE_POLL);
@@ -60,6 +57,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         case SYSTEM_EVENT_STA_DISCONNECTED:
             /* This is a workaround as ESP32 WiFi libs don't currently
                auto-reassociate. */
+            gpio_set_level( GPIO_LED, 0 );
             esp_wifi_connect();
             xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
             break;
@@ -139,7 +137,7 @@ int getKnownApPw( wifi_ap_record_t *foundAps, uint16_t foundNaps, uint8_t *ssid,
                 continue;
             }
             if( strcmp(jTemp->valuestring, "full") != 0 ){
-                ESP_LOGE(T, "Unsupported Wifi type");
+                ESP_LOGW(T, "Skipping %s due to unsupported Wifi type %s", currAp->ssid, jTemp->valuestring );
                 continue;
             }
             //---------------------------------------------------
@@ -227,6 +225,7 @@ void startHotspotMode(){
 
 void wifiConnectionTask(void *pvParameters){
     int wifiTry=0;   
+    wifi_sta_list_t hsStas;
     captdnsInit();
     while(1){
         switch( wifiState ){
@@ -236,9 +235,8 @@ void wifiConnectionTask(void *pvParameters){
                 //---------------------------------------------------
                 conToApMode();
                 if( ++wifiTry >= N_WIFI_TRYS ){
-                    wifiTry = 0;
                     ESP_LOGW(T,"No known Wifis found, switching to hotspot mode");
-                    wifiState = WIFI_HOTSPOT_MODE;
+                    wifiState = WIFI_START_HOTSPOT_MODE;
                 }    
                 break;
 
@@ -247,28 +245,67 @@ void wifiConnectionTask(void *pvParameters){
                 // Connected and happy, do nothing
                 //---------------------------------------------------
                 if( xEventGroupGetBits( wifi_event_group ) & CONNECTED_BIT ){
-                    vTaskDelay( 10000/portTICK_PERIOD_MS );
-                    continue;
+                    vTaskDelay( 1000/portTICK_PERIOD_MS );
                 } else {
                     ESP_LOGW(T, "Wifi connection lost !!! reconnecting ...");
                     wifiState = WIFI_CON_TO_AP_MODE;
                 }
                 break;
 
-            case WIFI_HOTSPOT_MODE:
+            case WIFI_START_HOTSPOT_MODE:
                 //---------------------------------------------------
                 // Start an soft access point
                 //---------------------------------------------------
                 startHotspotMode();
-                vTaskDelay( 60*60*1000/portTICK_PERIOD_MS );
+                wifiState = WIFI_HOTSPOT_RUNNING;
+                wifiTry = 0;
+                break;
+            
+            case WIFI_HOTSPOT_RUNNING:
+                //---------------------------------------------------
+                // Run hotspot. Timeout when noone is connected
+                //---------------------------------------------------
+                if( esp_wifi_ap_get_sta_list( &hsStas ) == ESP_OK ){
+                    if ( hsStas.num == 0 ){
+                        if( ++wifiTry > N_WIFI_TRYS ){
+                            wifiState = WIFI_OFF_MODE;
+                            continue;
+                        }
+                        ESP_LOGW(T, "Hotspot timeout: %d", wifiTry);
+                    } else {
+                        wifiTry = 0;
+                    }
+                }
+                vTaskDelay( WIFI_DELAY/portTICK_PERIOD_MS );
                 break;
                 
             case WIFI_OFF_MODE:
                 //---------------------------------------------------
-                // Disconnected and happy, do nothing
+                // Disconnect wifi
                 //---------------------------------------------------
-                ESP_LOGD(T, "WIFI_OFF_MODE");
-                vTaskDelay( 10000/portTICK_PERIOD_MS );
+                wifi_disable();
+                ESP_ERROR_CHECK( esp_wifi_stop() );
+                ESP_LOGI(T, "WIFI_OFF_MODE");
+                wifiState = WIFI_IDLE;
+                wifiTry = 0;
+                break;
+
+            case WIFI_IDLE:
+            default:
+                //---------------------------------------------------
+                // Do nothing (wheel ticks should keep it alive)
+                //---------------------------------------------------
+                // if( ++wifiTry > N_WIFI_TRYS ){
+                //     ESP_LOGW(T, "Going to deep sleep ...");
+                //     wifiTry = 0;
+                //     // go to deep sleep
+                //     // rtc_gpio_pullup_dis( GPIO_SPEED_PLS );
+                //     // rtc_gpio_pulldown_dis( GPIO_SPEED_PLS );
+                //     rtc_gpio_pullup_en( GPIO_SPEED_PLS );
+                //     ESP_ERROR_CHECK( esp_sleep_enable_ext0_wakeup( GPIO_SPEED_PLS, 0 ) );
+                //     esp_deep_sleep_start();
+                // }
+                vTaskDelay( WIFI_DELAY/portTICK_PERIOD_MS );
                 break;
         } // switch
     } // while(1)

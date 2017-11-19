@@ -851,4 +851,6 @@ Text Notes 1550 1000 0    60   ~ 0
 -2.2 A or 2.2 A  =  2.2 V
 Text Notes 3050 950  0    60   ~ 0
 Todo connect schottky diode\nbetween GND, to gain at least\n50 mV at 2 uA, to make the dead\nzone smaller
+Text Notes 4400 6950 0    60   ~ 0
+Moved speedPulse to IO2 to allow for wakeup
 $EndSCHEMATC

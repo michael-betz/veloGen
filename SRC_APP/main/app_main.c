@@ -19,6 +19,7 @@
 #include "nvs_flash.h"
 #include "esp_spiffs.h"
 #include "esp_wifi.h"
+#include "esp_ota_ops.h"
 
 #include "rom/cache.h"
 #include "rom/ets_sys.h"
@@ -86,25 +87,22 @@ const HttpdBuiltInUrl builtInUrls[]={
 
 void app_main()
 {
+    gpio_set_level( GPIO_LED, 1 );
     //------------------------------
     // Enable log file
     //------------------------------
     initFs();
-    memset( rtcLogBuffer, '\r', LOG_FILE_SIZE );
     esp_log_set_vprintf( wsDebugPrintf );
+    if( esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED ){
+        memset( rtcLogBuffer, '\r', LOG_FILE_SIZE );
+        // g_wheelCnt = 0;
+        const esp_partition_t *running = esp_ota_get_running_partition();
+        ESP_LOGI(T, "************* Woke up from the DEEEEAAADD (offset 0x%08x) *************", running->address);
+    } else {
+        ESP_LOGI(T, "ZZzzZZZZzzzZZZZzZzz Woke up from a deep nap ZZzzzzZZZzzzzZZZz");
+    }
     
     initVelogen();
-    gpio_set_level( GPIO_LED, 1 );
-
-    //------------------------------
-    // Print chip information
-    //------------------------------
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    ESP_LOGI(T,"This is ESP32 chip with %d CPU cores, WiFi%s%s, ", chip_info.cores, (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "", (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-    ESP_LOGI(T,"silicon revision %d, ", chip_info.revision);
-    ESP_LOGI(T,"%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024), (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-    ESP_LOGI(T,"RAM left %d\n", esp_get_free_heap_size());
 
     //------------------------------
     // Setup Wifi
@@ -148,7 +146,4 @@ void app_main()
 
     ESP_LOGI(T,"Starting ADC monitoring task");
     xTaskCreate(&adc_monitor_task, "adc_monitor_task", 2048, NULL, 5, NULL);
-    
-    // wifi_disable();
-    // esp_deep_sleep_start();
 }
