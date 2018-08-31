@@ -1,4 +1,4 @@
-$fn=30;
+$fn=40;
 
 // Bike frame mock-up
 rPipe = 35.4/2;

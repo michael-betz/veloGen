@@ -3,12 +3,19 @@ include<common.scad>
 
 // PCB mockup
 module pcb(){
-  translate([0,-24.2/2,-57.8/2]) union(){
-    cube(size=[5.5,24.2,57.8]);
-    translate([2,(24.2-16.5)/2,7]) cube(size=[2.6,16.5,57.8]);
-    translate([-6,6.5,12.8]) cube(size=[6.1,12.5,12.5]);
-    translate([-5,3,48.0]) cube(size=[5.1,16,9]);
-  }
+    pcbX = 24.2;
+    pcbY = 57.8;
+    color("green") translate([0, 0, -0.8]) cube(size=[pcbX, pcbY, 1.6], center=true);
+    translate([0, pcbY/2 - 25.6/2 + 6.3, 0.85/2]) {
+        color("black") cube(size=[18, 25.6, 0.85], center=true);
+        color("gray") translate([0, -3, 1]) cube(size=[15.88, 17.8, 2], center=true);
+    }
+    color("black") translate([0, -pcbY/2+6+12.6, -3-1.6]) cube(size=[12, 12, 6], center=true);
+    color("white") translate([0, -pcbY/2-16.2/2+3, -4.5]) rotate([90, 0, 0]){
+        translate([ pcbX/2-6.2/2-6.1, 0, 0]) cube(size=[6.2, 5.8, 16.2], center=true);
+        translate([-pcbX/2+6.2/2+5.6, 0, 0]) cube(size=[6.2, 5.8, 16.2], center=true);
+    }
+    // color("blue") cube(size=[26.5, 27.65, 1.25], center=true);
 }
 
 cubeX = 24.5;
@@ -26,7 +33,7 @@ module pcbHalfShell(cubeZ=10, isMirror=false){
         // SHape the outer cube
         minkowski(){
             translate([0, 0, -(cubeZ-smoothRad/2)/2]) cube(size=[cubeX-smoothRad/2, cubeY-smoothRad/2, cubeZ-smoothRad/2], center=true);
-            sphere(r=smoothRad, center=true);
+            sphere(r=smoothRad, center=true, $fn=10);
         }
         // Cut out the inner cube
         translate([0, 0, -cubeZ/2+1]) cube(size=[cubeX, cubeY, cubeZ+2], center=true);
@@ -65,25 +72,33 @@ module holder(){
     }
 }
 
-
+lowerShellDepth = 7;
 module pcbShell(){
     difference(){
         union(){
-            pcbHalfShell(6);
+            pcbHalfShell(lowerShellDepth);
             translate([0, 0, -15]) holder();
         }
-        translate([0, 0, -rPipe-6.5]) rotate([90, 90, 0]) cylinder(r=rPipe, h=90, center=true);
-        // Clip of the holder sticking out the top
-        translate([0, 0, 5-6]) cube(size=[16, cubeY, 10], center=true);
+        translate([0, 0, -rPipe-lowerShellDepth-1]) rotate([90, 90, 0]) cylinder(r=rPipe, h=90, center=true);
+        // Clip the holder sticking out the top
+        translate([0, 0, 1.5-lowerShellDepth]) cube(size=[20, cubeY, 3], center=true);
+        translate([-0.2, -34, -3.7]) cube(size=[12.5, 10, 6], center=true);
     }
-
-
-    // translate([0, 0, 10]) rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
-    // PCB mockup (not very good)
-    // translate([0, -3.5, 0]) rotate([0, -90, -90]) pcb();
+    // translate([0, 0, 20]) rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
+    // PCB mockup
+    // translate([0, -3, 0.8]) pcb();
 }
 
+// pcb();
 // holder();
-// pcbShell();
+
+// Full view
+pcbShell();
+
+// Cutting plane view
+// intersection(){
+//     pcbShell();
+//     translate([27, 0, 0]) cube(size=[50, 100, 50], center=true);
+// }
 
 

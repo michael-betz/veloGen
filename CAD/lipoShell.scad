@@ -45,8 +45,8 @@ module lipoShell(){
     // Bike frame cutout
     translate([0, 28, 0]) cylinder(h=200, r=rPipe, center=true);
   }
-  translate([0, -10, 0]) rotate([180, 0, 0]) lipoHalfShell(-4, isMirror=true);
+  %translate([0, 0, 0]) rotate([180, 0, 0]) lipoHalfShell(-4, isMirror=true);
   // Lipo Mockup
-  translate([0, 0, -33.1]) lipo();
-  translate([0, 0,  33.1]) lipo();
+  // translate([0, 0, -33.1]) lipo();
+  // translate([0, 0,  33.1]) lipo();
 }
