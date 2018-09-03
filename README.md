@@ -1,5 +1,5 @@
 # veloGen
-Minimalist bike computer and hub dynamo power manager. 
+Minimalist bike computer and hub dynamo power manager.
 
 A typical hub dynamo can deliver approx. 6 - 10 V at 0.5 A. Output current is inductively limited and stays relatively stable over speed. However voltage will go up. A custom made buck converter is used to extract maximum power and charge a 18650 liion cell. The front and back bike lights will be powered by this cell.
 
@@ -32,11 +32,11 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
  * 2 x current sensing shunt (Igenerator, Ibattery) + 2 x TS1101
  * IN system programming pins
  * P - channel mosfet to switch off external power on fault (low battery / overcurrent)
- 
+
 ### Datasheets
  * [MCP1630](http://ww1.microchip.com/downloads/en/DeviceDoc/21896b.pdf)
  * [LiIon app note](http://ww1.microchip.com/downloads/en/DeviceDoc/51555b.pdf)
- 
+
 ## 3D printed case
 
  * Mounts with zip ties / verlcro straps on the frame between 2 tubes angeled at 120 deg
@@ -44,4 +44,11 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
  * 5 mm wall thickness with a groove to place an O-ring between the shells
  * AC input cable (2 pin)
  * DC output + I2C cable (4 pin)
- 
+
+# Rev1 Notes
+  * Need mounting holes on PCB
+  * Case clamping the PCB doesn't work like that
+  * Case make teeth tighter
+  * Need to find less huge connectors for battery, dynamo and I2C
+  * Add OLED to case (Case and PCB can be made wider)
+

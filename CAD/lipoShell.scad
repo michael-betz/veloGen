@@ -50,3 +50,5 @@ module lipoShell(){
   // translate([0, 0, -33.1]) lipo();
   // translate([0, 0,  33.1]) lipo();
 }
+
+lipoShell();

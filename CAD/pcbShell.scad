@@ -58,20 +58,6 @@ module pcbHalfShell(cubeZ=10, isMirror=false){
     translate([-3,  cubeY/2+1.8, 0]) teeth(0.94, 2);
 }
 
-// D shaped
-module holder(){
-    difference(){
-        union(){
-            translate([0, 0, -9]) rotate([90, 0, 0]) cylinder(r=rPipe+2, h=64, center=true);
-            translate([-14,  25, 1.5]) rotate([0, -55, 0]) pin();
-            translate([-14, -25, 1.5]) rotate([0, -55, 0]) pin();
-            translate([ 14,  25, 1.5]) rotate([0,  55, 0]) pin();
-            translate([ 14, -25, 1.5]) rotate([0,  55, 0]) pin();
-        }
-        translate([0, 0, -25]) cube(size=[50, 100, 50], center=true);
-    }
-}
-
 lowerShellDepth = 7;
 module pcbShell(){
     difference(){
@@ -84,7 +70,7 @@ module pcbShell(){
         translate([0, 0, 1.5-lowerShellDepth]) cube(size=[20, cubeY, 3], center=true);
         translate([-0.2, -34, -3.7]) cube(size=[12.5, 10, 6], center=true);
     }
-    // translate([0, 0, 20]) rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
+    translate([0, 0, 20]) rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
     // PCB mockup
     // translate([0, -3, 0.8]) pcb();
 }
