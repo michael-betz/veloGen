@@ -1,0 +1,8 @@
+{
+    "hostname": "velogen",
+    "wifis": {
+        "<ssid>": {
+            "pw": "<password>"
+        }
+    }
+}

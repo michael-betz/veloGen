@@ -1,0 +1,58 @@
+<html>
+<head><title>Wifi Template</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<script language="javascript" type="text/javascript">
+    var wsUri = "ws://"+window.location.host+"/ws.cgi";
+    var outV, outI, state, gV, gI, wheelCnt;
+
+    function init() {
+        outV = document.getElementById("outputV");
+        outI = document.getElementById("outputI");
+        wheelCnt = document.getElementById("wheelCntId");
+        wheelCnt.innerHTML = "xxx";
+        websocket = new WebSocket(wsUri);
+        websocket.onopen    = function(evt) { console.log("WS CONNECTED"); };
+        websocket.onclose   = function(evt) { console.log("WS DISCONNECTED"); };
+        websocket.onmessage = function(evt) {
+            console.log(evt.data);
+            state = JSON.parse( evt.data );
+            outV.innerHTML = state["vBattVal"] + " mV";
+            outI.innerHTML = state["iBattVal"] + " mA";
+            wheelCnt.innerHTML = "Cnt: " + state["wheelCnt"];
+        };
+        websocket.onerror   = function(evt) { outV.innerHTML = 'ERROR: ' + evt.data; };
+        document.getElementById("myPwm").oninput = function(){
+            document.getElementById("myPwmOut").innerHTML = "Pwm " + this.value;
+            websocket.send("p" + this.value);
+        };
+        document.getElementById("myIPeak").oninput = function(){
+            document.getElementById("myIPeakOut").innerHTML = "IPeak " + this.value;
+            websocket.send("I" + this.value);
+        };
+    }
+
+    window.addEventListener("load", init, false);
+</script>
+</head>
+<body>
+<div id="main">
+	<h1>Velogen</h1>
+	<p>
+	the internet of bikes
+	<ul>
+	<li><a href="/debug">Debug console</a></li>
+  <li><a href="settings.html">Configuration</a></li>
+	<li><a href="/flash">OTA firmware update</a></li>
+	</ul>
+	</p>
+    <p id="outputV"></p>
+    <p id="outputI"></p>
+    <p id="wheelCntId"></p>
+    <div class="slidecontainer">
+        <p id="myPwmOut">Pwm</p>
+        <input type="range" min="0" max="127" value="50" class="slider" id="myPwm">
+        <p id="myIPeakOut">IPeak</p>
+        <input type="range" min="-128" max="127" value="-50" class="slider" id="myIPeak">
+    </div>
+</div>
+</body></html>
