@@ -4,5 +4,11 @@
         "<ssid>": {
             "pw": "<password>"
         }
-    }
+    },
+    // control peak inductor current
+    "dac_value": -50,
+    // control maximum duty cycle
+    "duty_value": 50,
+    // sleep when there's no wheel movement [0.3 s]
+    "shut_down_ticks": 3000
 }

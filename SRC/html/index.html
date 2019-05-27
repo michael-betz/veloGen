@@ -23,12 +23,20 @@
         websocket.onerror   = function(evt) { outV.innerHTML = 'ERROR: ' + evt.data; };
         document.getElementById("myPwm").oninput = function(){
             document.getElementById("myPwmOut").innerHTML = "Pwm " + this.value;
-            websocket.send("p" + this.value);
+            websocket.send("p" + (127 - this.value));
         };
         document.getElementById("myIPeak").oninput = function(){
             document.getElementById("myIPeakOut").innerHTML = "IPeak " + this.value;
             websocket.send("I" + this.value);
         };
+        document.getElementById("AP_mode").onclick = function(){
+            websocket.send("wa");
+            websocket.close();
+        }
+        document.getElementById("HP_mode").onclick = function(){
+            websocket.send("wh");
+            websocket.close();
+        }
     }
 
     window.addEventListener("load", init, false);
@@ -36,22 +44,22 @@
 </head>
 <body>
 <div id="main">
-	<h1>Velogen</h1>
-	<p>
-	the internet of bikes
-	<ul>
-	<li><a href="/debug">Debug console</a></li>
-  <li><a href="settings.html">Configuration</a></li>
-	<li><a href="/flash">OTA firmware update</a></li>
-	</ul>
-	</p>
+    <h1>Velogen</h1>
+    the internet of bikes
+    <ul>
+        <li><a href="/debug">Debug console</a></li>
+        <li><a href="settings.html">Configuration</a></li>
+        <li><a href="/flash">OTA firmware update</a></li>
+        <li><a href="#" id="AP_mode">AP mode</a></li>
+        <li><a href="#" id="HP_mode">Hotspot mode</a></li>
+    </ul>
     <p id="outputV"></p>
     <p id="outputI"></p>
     <p id="wheelCntId"></p>
     <div class="slidecontainer">
-        <p id="myPwmOut">Pwm</p>
-        <input type="range" min="0" max="127" value="50" class="slider" id="myPwm">
-        <p id="myIPeakOut">IPeak</p>
+        <p id="myPwmOut">Max. PWM duty cycle</p>
+        <input type="range" min="0" max="127" value="77" class="slider" id="myPwm">
+        <p id="myIPeakOut">Inductor peak current</p>
         <input type="range" min="-128" max="127" value="-50" class="slider" id="myIPeak">
     </div>
 </div>

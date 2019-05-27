@@ -10,9 +10,9 @@
 
 
 #define SETTINGS_FILE	"/S/settings.json"
-#define N_WIFI_TRYS		6
-#define N_HOSPOT_LOOPS  50
-#define WIFI_DELAY		10000	//[ms]
+#define N_WIFI_TRYS		3
+#define N_HOSPOT_LOOPS  6
+#define WIFI_DELAY		5000	//[ms]
 #define DNS_TIMEOUT 	10000 	//[ms]
 
 #define GET_HOSTNAME() jGetSD(getSettings(),"hostname","velogen")
@@ -39,8 +39,10 @@ extern void wifi_disable();
 #define jGetI(a,b) (jGet(a,b) ? jGet(a,b)->valueint : 0)
 #define jGetD(a,b) (jGet(a,b) ? jGet(a,b)->valuedouble : 0)
 #define jGetS(a,b) (jGet(a,b) ? jGet(a,b)->valuestring : 0)
-// Returns a fallback string on json error
-const char *jGetSD( const cJSON *j, const char *sName, const char *sDefault );
+
+// These return fallback values on json error
+const char *jGetSD(const cJSON *j, const char *sName, const char *defVal);
+int jGetInt(const cJSON *j, const char *sName, const int defVal);
 
 // Returns the `settings.json` singleton object
 cJSON *getSettings();

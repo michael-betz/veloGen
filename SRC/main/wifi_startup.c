@@ -15,7 +15,8 @@
 #include "esp_spiffs.h"
 #include "esp_wifi.h"
 #include "esp_ping.h"
-#include "ping.h"
+// #include "ping.h"
+#include "esp_sntp.h"
 #include "nvs_flash.h"
 
 #include "libesphttpd/esp.h"
@@ -28,7 +29,6 @@
 #include "libesphttpd/captdns.h"
 #include "web_console.h"
 
-#include "apps/sntp/sntp.h"
 #include "lwip/err.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
@@ -36,6 +36,8 @@
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
+#include "ping/ping.h"
+#include "mdns.h"
 
 #include "cgi.h"
 #include "cJSON.h"
@@ -84,7 +86,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP,  GET_HOSTNAME());
             tcpip_adapter_dns_info_t dnsIp;
             ipaddr_aton("192.168.4.1", &dnsIp.ip );
-            ESP_ERROR_CHECK( tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_AP, TCPIP_ADAPTER_DNS_MAIN, &dnsIp) );
+            ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_AP, TCPIP_ADAPTER_DNS_MAIN, &dnsIp));
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
@@ -154,10 +156,10 @@ cJSON *readJsonDyn( const char* fName ){
 }
 
 cJSON *g_settings = NULL;
-cJSON *getSettings(){
+cJSON *getSettings() {
     if (!g_settings) {
-        g_settings = readJsonDyn( SETTINGS_FILE );
-        if( g_settings ){
+        g_settings = readJsonDyn(SETTINGS_FILE);
+        if(g_settings) {
             ESP_LOGI(T, "Loaded %s:", SETTINGS_FILE);
         } else {
             ESP_LOGE(T, "Error loading %s", SETTINGS_FILE);
@@ -166,13 +168,24 @@ cJSON *getSettings(){
     return g_settings;
 }
 
-const char *jGetSD( const cJSON *j, const char *sName, const char *sDefault ){
-    const cJSON *jTemp = cJSON_GetObjectItemCaseSensitive( j, sName );
-    if( !cJSON_IsString(jTemp) ){
+const char *jGetSD(const cJSON *j, const char *sName, const char *defVal) {
+    if (!j) return defVal;
+    j = cJSON_GetObjectItemCaseSensitive(j, sName);
+    if(!cJSON_IsString(j)) {
         ESP_LOGE(T, "json error: %s is not a string", sName);
-        return sDefault;
+        return defVal;
     }
-    return jTemp->valuestring;
+    return j->valuestring;
+}
+
+int jGetInt(const cJSON *j, const char *sName, const int defVal) {
+    if (!j) return defVal;
+    j = cJSON_GetObjectItemCaseSensitive(j, sName);
+    if (!cJSON_IsNumber(j)) {
+        ESP_LOGE(T, "json error: %s is not a number", sName);
+        return defVal;
+    }
+    return j->valueint;
 }
 
 void reloadSettings(){
@@ -286,7 +299,7 @@ void startHotspotMode(){
         .ap.password = "",
         .ap.channel = 5,
         .ap.authmode = WIFI_AUTH_OPEN,
-        .ap.max_connection = 4,
+        .ap.max_connection = 6,
         .ap.beacon_interval = 100
     };
     strcpy( (char*)wifi_config.ap.ssid, GET_HOSTNAME() );
@@ -301,12 +314,21 @@ void wifiConnectionTask(void *pvParameters){
     int wifiTry=0;
     wifi_sta_list_t hsStas;
 
+    //initialize mDNS service
+    ESP_ERROR_CHECK(mdns_init());
+    //set hostname
+    mdns_hostname_set(GET_HOSTNAME());
+    //set default instance
+    mdns_instance_name_set("The internet of bikes ;)");
+    // causes havok on android!
+    // captdnsInit();
+
     //------------------------------
     // Start http server
     //------------------------------
     ESP_ERROR_CHECK( espFsInit((void*)(webpages_espfs_start)) );
     ESP_ERROR_CHECK( httpdInit(builtInUrls, 80, 0) );
-    captdnsInit();
+
 
     while(1){
         switch( wifiState ){

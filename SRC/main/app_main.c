@@ -23,6 +23,7 @@
 #include "libesphttpd/esp.h"
 #include "libesphttpd/cgiwebsocket.h"
 #include "esp_log.h"
+#include "esp_sleep.h"
 #include "web_console.h"
 #include "wifi_startup.h"
 #include "velogen_hw.h"
@@ -36,17 +37,20 @@ static void wsAppReceive(Websock *ws, char *data, int len, int flags){
         switch(data[0]){
             case 'p':
                 temp = atoi(&data[1]);
-                if(temp >= 0 && temp <= 127){
-                    ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, temp);
-                    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-                }
+                set_duty(temp);
                 break;
             case 'I':
                 temp = atoi(&data[1]);
-                if(temp >= -128 && temp <= 127){
-                    sigmadelta_set_duty(SIGMADELTA_CHANNEL_0, temp);
-                }
+                set_dac(temp);
                 break;
+            case 'w':
+                if (data[1] == 'h') {
+                    ESP_LOGI(T, "Switching to hot-spot mode");
+                    wifiState = WIFI_START_HOTSPOT_MODE;
+                } else if (data[1] == 'a') {
+                    ESP_LOGI(T, "Switching to station mode");
+                    wifiState = WIFI_CON_TO_AP_MODE;
+                }
             default:
                 ESP_LOGI(T, "wsrx:");
                 ESP_LOG_BUFFER_HEXDUMP(T, data, len, ESP_LOG_INFO);
@@ -67,8 +71,8 @@ void app_main(){
     //------------------------------
     // Enable RAM log file
     //------------------------------
-    esp_log_level_set( "*", ESP_LOG_INFO );
-    esp_log_set_vprintf( wsDebugPrintf );
+    esp_log_level_set("*", ESP_LOG_DEBUG);
+    esp_log_set_vprintf(wsDebugPrintf);
 
     //------------------------------
     // Init filesystems
@@ -78,7 +82,7 @@ void app_main(){
     //------------------------------
     // Velogen stuff
     //------------------------------
-    if( esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED ){
+    if(esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED){
         ESP_LOGI(T, "************* Woke up from the DEEEEAAADD *************");
     } else {
         ESP_LOGI(T, "ZZzzZZZZzzzZZZZzZzz Woke up from a deep nap ZZzzzzZZZzzzzZZZz");
@@ -102,5 +106,5 @@ void app_main(){
 
     xTaskCreate(&adc_monitor_task, "adc_monitor_task", 2048, NULL, 5, NULL);
     ESP_LOGI(T, "Done");
-    gpio_set_level( GPIO_LED, 0 );
+    gpio_set_level(GPIO_LED, 0);
 }
