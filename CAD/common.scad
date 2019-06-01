@@ -14,7 +14,7 @@ module bikeFrame() {
 }
 
 // To generate the interlocking teeth between half shells
-module teeth( scaleF, n=20, raster=12 ){
+module teeth(scaleF=1.0, n=20, raster=12) {
   for (i = [0:n-1]){
     xTooth = (i - (n - 1) / 2) * raster;
     translate([xTooth,0,0]) scale(scaleF) union(){
