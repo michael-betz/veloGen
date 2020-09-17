@@ -14,7 +14,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L Connector:Conn_01x02_Male J1
+L velogen2-rescue:Conn_01x02_Male-Connector J1
 U 1 1 5F56A285
 P 1900 1800
 F 0 "J1" V 1850 1800 50  0000 R CNN
@@ -25,7 +25,7 @@ F 3 "~" H 1900 1800 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Device:D_Schottky D1
+L velogen2-rescue:D_Schottky-Device D1
 U 1 1 5F56A4FF
 P 1550 1400
 F 0 "D1" V 1504 1480 50  0000 L CNN
@@ -36,7 +36,7 @@ F 3 "~" H 1550 1400 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:D_Schottky D3
+L velogen2-rescue:D_Schottky-Device D3
 U 1 1 5F56B156
 P 2300 1400
 F 0 "D3" V 2254 1480 50  0000 L CNN
@@ -47,7 +47,7 @@ F 3 "~" H 2300 1400 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:D_Schottky D2
+L velogen2-rescue:D_Schottky-Device D2
 U 1 1 5F56B54E
 P 1550 1800
 F 0 "D2" V 1504 1880 50  0000 L CNN
@@ -58,7 +58,7 @@ F 3 "~" H 1550 1800 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:D_Schottky D4
+L velogen2-rescue:D_Schottky-Device D4
 U 1 1 5F56B7DE
 P 2300 1800
 F 0 "D4" V 2254 1880 50  0000 L CNN
@@ -83,7 +83,7 @@ Wire Wire Line
 	2300 1650 2300 1600
 Connection ~ 2300 1600
 $Comp
-L power:GND #PWR0101
+L velogen2-rescue:GND-power #PWR0101
 U 1 1 5F56E28B
 P 1550 1950
 F 0 "#PWR0101" H 1550 1700 50  0001 C CNN
@@ -94,7 +94,7 @@ F 3 "" H 1550 1950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0102
+L velogen2-rescue:GND-power #PWR0102
 U 1 1 5F56E6EF
 P 2300 1950
 F 0 "#PWR0102" H 2300 1700 50  0001 C CNN
@@ -112,7 +112,7 @@ Wire Wire Line
 	2300 1200 2300 1250
 Connection ~ 2300 1200
 $Comp
-L Device:Q_PMOS_GDS Q2
+L velogen2-rescue:Q_PMOS_GDS-Device Q2
 U 1 1 5F56F31B
 P 3600 1300
 F 0 "Q2" V 3942 1300 50  0000 C CNN
@@ -123,7 +123,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/DMP10H400SE.pdf" H 3600 1300 50  0
 	0    1    -1   0   
 $EndComp
 $Comp
-L Device:D_Zener D5
+L velogen2-rescue:D_Zener-Device D5
 U 1 1 5F571419
 P 2900 1400
 F 0 "D5" V 2854 1480 50  0000 L CNN
@@ -134,7 +134,7 @@ F 3 "~" H 2900 1400 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:R R1
+L velogen2-rescue:R-Device R1
 U 1 1 5F572215
 P 3250 1400
 F 0 "R1" H 3320 1446 50  0000 L CNN
@@ -145,7 +145,7 @@ F 3 "~" H 3250 1400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:R R2
+L velogen2-rescue:R-Device R2
 U 1 1 5F573AB3
 P 3250 1800
 F 0 "R2" H 3320 1846 50  0000 L CNN
@@ -183,7 +183,7 @@ Wire Wire Line
 Wire Wire Line
 	3600 1600 3250 1600
 $Comp
-L power:GND #PWR0103
+L velogen2-rescue:GND-power #PWR0103
 U 1 1 5F583012
 P 3250 2550
 F 0 "#PWR0103" H 3250 2300 50  0001 C CNN
@@ -196,7 +196,7 @@ $EndComp
 Text Notes 1550 1100 0    50   ~ 0
 Max. input voltage: 100 V
 $Comp
-L Transistor_FET:BSS123 Q1
+L velogen2-rescue:BSS123-Transistor_FET Q1
 U 1 1 5F5845F4
 P 3350 2200
 F 0 "Q1" H 3555 2246 50  0000 L CNN
@@ -207,7 +207,7 @@ F 3 "http://www.diodes.com/assets/Datasheets/ds30366.pdf" H 3350 2200 50  0001 L
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0104
+L velogen2-rescue:GND-power #PWR0104
 U 1 1 5F5834B3
 P 9400 1400
 F 0 "#PWR0104" H 9400 1150 50  0001 C CNN
@@ -218,7 +218,7 @@ F 3 "" H 9400 1400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Connector:Conn_01x02_Male J6
+L velogen2-rescue:Conn_01x02_Male-Connector J6
 U 1 1 5F5692A0
 P 9600 1300
 F 0 "J6" H 9572 1274 50  0000 R CNN
@@ -229,7 +229,7 @@ F 3 "~" H 9600 1300 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:+BATT #PWR0105
+L velogen2-rescue:+BATT-power #PWR0105
 U 1 1 5F58E239
 P 4100 1200
 F 0 "#PWR0105" H 4100 1050 50  0001 C CNN
@@ -242,7 +242,7 @@ $EndComp
 Wire Wire Line
 	3800 1200 4100 1200
 $Comp
-L Device:C C2
+L velogen2-rescue:C-Device C2
 U 1 1 5F58F463
 P 4100 1400
 F 0 "C2" H 4215 1446 50  0000 L CNN
@@ -256,7 +256,7 @@ Wire Wire Line
 	4100 1250 4100 1200
 Connection ~ 4100 1200
 $Comp
-L power:GND #PWR0106
+L velogen2-rescue:GND-power #PWR0106
 U 1 1 5F58FC7B
 P 4100 1550
 F 0 "#PWR0106" H 4100 1300 50  0001 C CNN
@@ -267,7 +267,7 @@ F 3 "" H 4100 1550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:R R3
+L velogen2-rescue:R-Device R3
 U 1 1 5F5917E1
 P 3600 2400
 F 0 "R3" H 3670 2446 50  0000 L CNN
@@ -282,7 +282,7 @@ Wire Wire Line
 Wire Wire Line
 	3600 2200 3600 2250
 $Comp
-L power:GND #PWR0107
+L velogen2-rescue:GND-power #PWR0107
 U 1 1 5F592124
 P 3600 2550
 F 0 "#PWR0107" H 3600 2300 50  0001 C CNN
@@ -296,7 +296,7 @@ Wire Wire Line
 	3600 2200 3950 2200
 Connection ~ 3600 2200
 $Comp
-L Device:C C4
+L velogen2-rescue:C-Device C4
 U 1 1 5F592D1B
 P 8950 1450
 F 0 "C4" H 9065 1496 50  0000 L CNN
@@ -307,7 +307,7 @@ F 3 "~" H 8950 1450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0108
+L velogen2-rescue:GND-power #PWR0108
 U 1 1 5F5933FD
 P 8950 1600
 F 0 "#PWR0108" H 8950 1350 50  0001 C CNN
@@ -318,7 +318,7 @@ F 3 "" H 8950 1600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Analog_ADC:INA219BxD U3
+L velogen2-rescue:INA219BxD-Analog_ADC U3
 U 1 1 5F594FA9
 P 7200 1850
 F 0 "U3" V 7400 2250 50  0000 L CNN
@@ -329,7 +329,7 @@ F 3 "http://www.ti.com/lit/ds/symlink/ina219.pdf" H 7550 1750 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:R R4
+L velogen2-rescue:R-Device R4
 U 1 1 5F597149
 P 7200 1300
 F 0 "R4" V 6993 1300 50  0000 C CNN
@@ -344,7 +344,7 @@ Wire Wire Line
 Wire Wire Line
 	6100 1300 6100 1250
 $Comp
-L power:+BATT #PWR0109
+L velogen2-rescue:+BATT-power #PWR0109
 U 1 1 5F5999D2
 P 6100 1250
 F 0 "#PWR0109" H 6100 1100 50  0001 C CNN
@@ -355,7 +355,7 @@ F 3 "" H 6100 1250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0110
+L velogen2-rescue:GND-power #PWR0110
 U 1 1 5F599CB9
 P 6800 1850
 F 0 "#PWR0110" H 6800 1600 50  0001 C CNN
@@ -366,7 +366,7 @@ F 3 "" H 6800 1850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+3V3 #PWR0111
+L velogen2-rescue:+3V3-power #PWR0111
 U 1 1 5F59A64B
 P 7650 1800
 F 0 "#PWR0111" H 7650 1650 50  0001 C CNN
@@ -381,7 +381,7 @@ Wire Wire Line
 Wire Wire Line
 	7650 1850 7600 1850
 $Comp
-L power:+3V3 #PWR0112
+L velogen2-rescue:+3V3-power #PWR0112
 U 1 1 5F59B554
 P 6450 1700
 F 0 "#PWR0112" H 6450 1550 50  0001 C CNN
@@ -392,7 +392,7 @@ F 3 "" H 6450 1700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:C C3
+L velogen2-rescue:C-Device C3
 U 1 1 5F59BE11
 P 6450 1850
 F 0 "C3" H 6565 1896 50  0000 L CNN
@@ -403,7 +403,7 @@ F 3 "~" H 6450 1850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0113
+L velogen2-rescue:GND-power #PWR0113
 U 1 1 5F59C3A2
 P 6450 2000
 F 0 "#PWR0113" H 6450 1750 50  0001 C CNN
@@ -428,7 +428,7 @@ Connection ~ 7400 1300
 Wire Wire Line
 	7400 1300 7350 1300
 $Comp
-L power:GND #PWR0114
+L velogen2-rescue:GND-power #PWR0114
 U 1 1 5F59FF3D
 P 7000 2250
 F 0 "#PWR0114" H 7000 2000 50  0001 C CNN
@@ -439,7 +439,7 @@ F 3 "" H 7000 2250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0115
+L velogen2-rescue:GND-power #PWR0115
 U 1 1 5F5A02AD
 P 7100 2250
 F 0 "#PWR0115" H 7100 2000 50  0001 C CNN
@@ -455,7 +455,7 @@ Wire Wire Line
 Wire Wire Line
 	7400 1300 8950 1300
 $Comp
-L myStuff:DCDC_mod U1
+L velogen2-rescue:DCDC_mod-myStuff U1
 U 1 1 5F5ACFB9
 P 2200 5050
 F 0 "U1" H 2072 5578 60  0000 R CNN
@@ -466,7 +466,7 @@ F 3 "" H 1800 5650 60  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:+BATT #PWR0116
+L velogen2-rescue:+BATT-power #PWR0116
 U 1 1 5F5B0986
 P 1700 4650
 F 0 "#PWR0116" H 1700 4500 50  0001 C CNN
@@ -477,7 +477,7 @@ F 3 "" H 1700 4650 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L power:+3V3 #PWR0117
+L velogen2-rescue:+3V3-power #PWR0117
 U 1 1 5F5B1979
 P 1700 4350
 F 0 "#PWR0117" H 1700 4200 50  0001 C CNN
@@ -488,7 +488,7 @@ F 3 "" H 1700 4350 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L power:GND #PWR0118
+L velogen2-rescue:GND-power #PWR0118
 U 1 1 5F5B284C
 P 1700 4500
 F 0 "#PWR0118" H 1700 4250 50  0001 C CNN
@@ -499,7 +499,7 @@ F 3 "" H 1700 4500 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Switch:SW_SPST SW1
+L velogen2-rescue:SW_SPST-Switch SW1
 U 1 1 5F5B427A
 P 1550 5150
 F 0 "SW1" V 1504 5248 50  0000 L CNN
@@ -514,7 +514,7 @@ Wire Wire Line
 Wire Wire Line
 	1550 4800 1550 4950
 $Comp
-L power:GND #PWR0119
+L velogen2-rescue:GND-power #PWR0119
 U 1 1 5F5B57B8
 P 1550 5350
 F 0 "#PWR0119" H 1550 5100 50  0001 C CNN
@@ -525,7 +525,7 @@ F 3 "" H 1550 5350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L RF_Module:ESP32-WROOM-32 U2
+L velogen2-rescue:ESP32-WROOM-32-RF_Module U2
 U 1 1 5F5B67E7
 P 5650 4750
 F 0 "U2" H 5650 6650 50  0000 C CNN
@@ -536,7 +536,7 @@ F 3 "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+3V3 #PWR0120
+L velogen2-rescue:+3V3-power #PWR0120
 U 1 1 5F5B8692
 P 5650 3350
 F 0 "#PWR0120" H 5650 3200 50  0001 C CNN
@@ -547,7 +547,7 @@ F 3 "" H 5650 3350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0121
+L velogen2-rescue:GND-power #PWR0121
 U 1 1 5F5B8DDE
 P 5650 6150
 F 0 "#PWR0121" H 5650 5900 50  0001 C CNN
@@ -558,7 +558,7 @@ F 3 "" H 5650 6150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+3V3 #PWR0122
+L velogen2-rescue:+3V3-power #PWR0122
 U 1 1 5F5B94A9
 P 750 4450
 F 0 "#PWR0122" H 750 4300 50  0001 C CNN
@@ -569,7 +569,7 @@ F 3 "" H 750 4450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:C C1
+L velogen2-rescue:C-Device C1
 U 1 1 5F5B94B3
 P 750 4600
 F 0 "C1" H 865 4646 50  0000 L CNN
@@ -580,7 +580,7 @@ F 3 "~" H 750 4600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0123
+L velogen2-rescue:GND-power #PWR0123
 U 1 1 5F5B94BD
 P 750 4750
 F 0 "#PWR0123" H 750 4500 50  0001 C CNN
@@ -596,7 +596,7 @@ Wire Wire Line
 	7400 2450 7550 2450
 Connection ~ 7400 2450
 $Comp
-L Device:R R5
+L velogen2-rescue:R-Device R5
 U 1 1 5F5BF3F7
 P 7700 2450
 F 0 "R5" V 7600 2350 50  0000 C CNN
@@ -607,7 +607,7 @@ F 3 "~" H 7700 2450 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L power:+3V3 #PWR0124
+L velogen2-rescue:+3V3-power #PWR0124
 U 1 1 5F5BF87F
 P 7950 2450
 F 0 "#PWR0124" H 7950 2300 50  0001 C CNN
@@ -650,7 +650,7 @@ EN_DYN
 Wire Wire Line
 	3250 2550 3250 2400
 $Comp
-L Connector:Conn_01x03_Male J3
+L velogen2-rescue:Conn_01x03_Male-Connector J3
 U 1 1 5F5CC84D
 P 9400 3450
 F 0 "J3" H 9372 3474 50  0000 R CNN
@@ -661,7 +661,7 @@ F 3 "~" H 9400 3450 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:+BATT #PWR0125
+L velogen2-rescue:+BATT-power #PWR0125
 U 1 1 5F5CD5DE
 P 9200 3450
 F 0 "#PWR0125" H 9200 3300 50  0001 C CNN
@@ -672,7 +672,7 @@ F 3 "" H 9200 3450 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L power:GND #PWR0126
+L velogen2-rescue:GND-power #PWR0126
 U 1 1 5F5CE12A
 P 9200 3550
 F 0 "#PWR0126" H 9200 3300 50  0001 C CNN
@@ -687,7 +687,7 @@ Wire Wire Line
 Text Label 8900 3350 0    50   ~ 0
 EN0
 $Comp
-L Connector:Conn_01x03_Male J4
+L velogen2-rescue:Conn_01x03_Male-Connector J4
 U 1 1 5F5D0AF5
 P 9400 3900
 F 0 "J4" H 9372 3924 50  0000 R CNN
@@ -698,7 +698,7 @@ F 3 "~" H 9400 3900 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:+BATT #PWR0127
+L velogen2-rescue:+BATT-power #PWR0127
 U 1 1 5F5D0AFB
 P 9200 3900
 F 0 "#PWR0127" H 9200 3750 50  0001 C CNN
@@ -709,7 +709,7 @@ F 3 "" H 9200 3900 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L power:GND #PWR0128
+L velogen2-rescue:GND-power #PWR0128
 U 1 1 5F5D0B01
 P 9200 4000
 F 0 "#PWR0128" H 9200 3750 50  0001 C CNN
@@ -724,7 +724,7 @@ Wire Wire Line
 Text Label 8900 3800 0    50   ~ 0
 EN1
 $Comp
-L Connector:Conn_01x03_Male J5
+L velogen2-rescue:Conn_01x03_Male-Connector J5
 U 1 1 5F5D2A28
 P 9400 4350
 F 0 "J5" H 9372 4374 50  0000 R CNN
@@ -735,7 +735,7 @@ F 3 "~" H 9400 4350 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L power:+BATT #PWR0129
+L velogen2-rescue:+BATT-power #PWR0129
 U 1 1 5F5D2A2E
 P 9200 4350
 F 0 "#PWR0129" H 9200 4200 50  0001 C CNN
@@ -746,7 +746,7 @@ F 3 "" H 9200 4350 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L power:GND #PWR0130
+L velogen2-rescue:GND-power #PWR0130
 U 1 1 5F5D2A34
 P 9200 4450
 F 0 "#PWR0130" H 9200 4200 50  0001 C CNN
@@ -767,7 +767,7 @@ EN1
 Text Label 6750 4050 2    50   ~ 0
 EN2
 $Comp
-L Connector:Conn_01x05_Male J2
+L velogen2-rescue:Conn_01x05_Male-Connector J2
 U 1 1 5F5D7932
 P 6950 5150
 F 0 "J2" H 6922 5174 50  0000 R CNN
@@ -788,7 +788,7 @@ Wire Wire Line
 Wire Wire Line
 	6750 5350 6250 5350
 $Comp
-L Connector:TestPoint TP3
+L velogen2-rescue:TestPoint-Connector TP3
 U 1 1 5F5E7DAE
 P 6750 5550
 F 0 "TP3" V 6750 5750 50  0000 L CNN
@@ -799,7 +799,7 @@ F 3 "~" H 6950 5550 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Connector:TestPoint TP4
+L velogen2-rescue:TestPoint-Connector TP4
 U 1 1 5F5E8BE4
 P 6750 5650
 F 0 "TP4" V 6750 5850 50  0000 L CNN
@@ -810,7 +810,7 @@ F 3 "~" H 6950 5650 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Connector:TestPoint TP2
+L velogen2-rescue:TestPoint-Connector TP2
 U 1 1 5F5E8EE6
 P 6750 5450
 F 0 "TP2" V 6750 5650 50  0000 L CNN
@@ -821,7 +821,7 @@ F 3 "~" H 6950 5450 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Connector:TestPoint TP1
+L velogen2-rescue:TestPoint-Connector TP1
 U 1 1 5F5EABC4
 P 6750 4450
 F 0 "TP1" V 6750 4650 50  0000 L CNN
@@ -832,7 +832,7 @@ F 3 "~" H 6950 4450 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L myStuff:DISP_I2C_EBAY U4
+L velogen2-rescue:DISP_I2C_EBAY-myStuff U4
 U 1 1 5F58867B
 P 2700 7100
 F 0 "U4" H 3178 7411 60  0000 L CNN
@@ -843,7 +843,7 @@ F 3 "" H 2700 7100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0131
+L velogen2-rescue:GND-power #PWR0131
 U 1 1 5F589608
 P 2200 6350
 F 0 "#PWR0131" H 2200 6100 50  0001 C CNN
@@ -860,7 +860,7 @@ Wire Wire Line
 Wire Wire Line
 	2400 6300 2400 6400
 $Comp
-L power:+3V3 #PWR0132
+L velogen2-rescue:+3V3-power #PWR0132
 U 1 1 5F58BAE2
 P 2600 6400
 F 0 "#PWR0132" H 2600 6250 50  0001 C CNN
@@ -879,7 +879,7 @@ SCL
 Text Label 3000 6200 3    50   ~ 0
 SDA
 $Comp
-L myStuff:POGO_PROG U5
+L velogen2-rescue:POGO_PROG-myStuff U5
 U 1 1 5F5C1A33
 P 9250 5450
 F 0 "U5" H 9072 5496 50  0000 R CNN
@@ -906,7 +906,7 @@ prog_rx
 Text Label 8650 5400 0    50   ~ 0
 prog_tx
 $Comp
-L power:+BATT #PWR03
+L velogen2-rescue:+BATT-power #PWR03
 U 1 1 5F5CBC4F
 P 8950 5500
 F 0 "#PWR03" H 8950 5350 50  0001 C CNN
@@ -919,7 +919,7 @@ $EndComp
 Text Label 8650 5600 0    50   ~ 0
 prog_btn
 $Comp
-L power:GND #PWR02
+L velogen2-rescue:GND-power #PWR02
 U 1 1 5F5CECF1
 P 8900 5700
 F 0 "#PWR02" H 8900 5450 50  0001 C CNN
@@ -930,7 +930,7 @@ F 3 "" H 8900 5700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:R R7
+L velogen2-rescue:R-Device R7
 U 1 1 5F5CF834
 P 5000 3350
 F 0 "R7" H 5100 3450 50  0000 L CNN
@@ -945,7 +945,7 @@ Wire Wire Line
 Wire Wire Line
 	5000 3550 5050 3550
 $Comp
-L power:+3V3 #PWR01
+L velogen2-rescue:+3V3-power #PWR01
 U 1 1 5F5D218B
 P 5000 3200
 F 0 "#PWR01" H 5000 3050 50  0001 C CNN
@@ -973,7 +973,7 @@ Wire Wire Line
 Text Label 6750 3550 2    50   ~ 0
 prog_btn
 $Comp
-L Device:R R6
+L velogen2-rescue:R-Device R6
 U 1 1 5F5DEAF2
 P 2750 1900
 F 0 "R6" V 2650 1900 50  0000 L CNN
@@ -985,8 +985,6 @@ F 3 "~" H 2750 1900 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	2750 1750 2750 1600
-Wire Wire Line
-	2750 2050 2750 2550
 Text Label 2750 2550 1    50   ~ 0
 speedPulse
 Text Label 6750 3750 2    50   ~ 0
@@ -1003,4 +1001,70 @@ Wire Wire Line
 	6250 5650 6750 5650
 Wire Wire Line
 	2750 1600 2300 1600
+$Comp
+L Device:D_Schottky D6
+U 1 1 5F65588B
+P 2850 3050
+F 0 "D6" H 2850 3267 50  0000 C CNN
+F 1 "B5819WS" H 2850 3176 50  0000 C CNN
+F 2 "Diode_SMD:D_SOD-323" H 2850 3050 50  0001 C CNN
+F 3 "https://www.mccsemi.com/pdf/Products/B5817WS-B5819WS(SOD-323).PDF" H 2850 3050 50  0001 C CNN
+	1    2850 3050
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:D_Schottky D7
+U 1 1 5F657E57
+P 2850 3650
+F 0 "D7" H 2850 3867 50  0000 C CNN
+F 1 "B5819WS" H 2850 3776 50  0000 C CNN
+F 2 "Diode_SMD:D_SOD-323" H 2850 3650 50  0001 C CNN
+F 3 "https://www.mccsemi.com/pdf/Products/B5817WS-B5819WS(SOD-323).PDF" H 2850 3650 50  0001 C CNN
+	1    2850 3650
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	2850 3200 2850 3350
+Wire Wire Line
+	2850 3350 2750 3350
+Connection ~ 2850 3350
+Wire Wire Line
+	2850 3350 2850 3500
+Wire Wire Line
+	2750 2050 2750 3350
+$Comp
+L velogen2-rescue:+3V3-power #PWR04
+U 1 1 5F688C96
+P 2850 2900
+F 0 "#PWR04" H 2850 2750 50  0001 C CNN
+F 1 "+3V3" H 2865 3073 50  0000 C CNN
+F 2 "" H 2850 2900 50  0001 C CNN
+F 3 "" H 2850 2900 50  0001 C CNN
+	1    2850 2900
+	1    0    0    -1  
+$EndComp
+$Comp
+L velogen2-rescue:GND-power #PWR05
+U 1 1 5F6962B6
+P 2850 3800
+F 0 "#PWR05" H 2850 3550 50  0001 C CNN
+F 1 "GND" H 2855 3627 50  0000 C CNN
+F 2 "" H 2850 3800 50  0001 C CNN
+F 3 "" H 2850 3800 50  0001 C CNN
+	1    2850 3800
+	1    0    0    -1  
+$EndComp
+NoConn ~ 6250 5750
+NoConn ~ 6250 5850
+NoConn ~ 6250 4850
+NoConn ~ 6250 4750
+NoConn ~ 6250 4650
+NoConn ~ 5050 3750
+NoConn ~ 5050 3850
+NoConn ~ 5050 4750
+NoConn ~ 5050 4850
+NoConn ~ 5050 4950
+NoConn ~ 5050 5050
+NoConn ~ 5050 5150
+NoConn ~ 5050 5250
 $EndSCHEMATC
