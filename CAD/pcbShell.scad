@@ -3,20 +3,7 @@ include<common.scad>
 
 // PCB mockup
 module pcb(){
-    color("green") translate([-177.5, 95, -tPcb / 2 + 0.05]) import("pcb.stl");
-    // pcbX = 24.2;
-    // pcbY = 57.8;
-    // color("green") translate([0, 0, -0.8]) cube(size=[pcbX, pcbY, 1.6], center=true);
-    // translate([0, pcbY/2 - 25.6/2 + 6.3, 0.85/2]) {
-    //     color("black") cube(size=[18, 25.6, 0.85], center=true);
-    //     color("gray") translate([0, -3, 1]) cube(size=[15.88, 17.8, 2], center=true);
-    // }
-    // color("black") translate([0, -pcbY/2+6+12.6, -3-1.6]) cube(size=[12, 12, 6], center=true);
-    // color("white") translate([0, -pcbY/2-16.2/2+3, -4.5]) rotate([90, 0, 0]){
-    //     translate([ pcbX/2-6.2/2-6.1, 0, 0]) cube(size=[6.2, 5.8, 16.2], center=true);
-    //     translate([-pcbX/2+6.2/2+5.6, 0, 0]) cube(size=[6.2, 5.8, 16.2], center=true);
-    // }
-    // color("blue") cube(size=[26.5, 27.65, 1.25], center=true);
+    color("green") translate([-177.5, 95, -tPcb / 2 + 0.05]) import("vg2.stl");
 }
 
 cubeX = 35.2;
@@ -61,8 +48,13 @@ module pcbHalfShell(cubeZ=10, isMirror=false){
     translate([-3,  cubeY/2+1.8, 0]) teeth(0.94, nTeethX);
 }
 
+module lowerConCutout() {
+    translate([-0, -34, -3.9]) cube(size=[32.5, 10, 6.2], center=true);
+}
+
 lowerShellDepth = 7;
 module pcbShell(){
+    // Lower shell
     difference(){
         union(){
             pcbHalfShell(lowerShellDepth);
@@ -71,9 +63,27 @@ module pcbShell(){
         translate([0, 0, -rPipe-lowerShellDepth-1]) rotate([90, 90, 0]) cylinder(r=rPipe, h=90, center=true);
         // Clip the holder sticking out the top
         translate([0, 0, 1.5-lowerShellDepth]) cube(size=[20, cubeY, 3], center=true);
-        translate([-0.2, -34, -3.9]) cube(size=[32.0, 10, 6.2], center=true);
+
+        // Lower connector cut-out
+        lowerConCutout();
+
+        // Antenna cut-out
+        translate([22, -14.2, 1]) cube(size=[10, 18.5, 6.2], center=true);
+
     }
-    translate([0, 0, 20]) rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
+
+    // Upper shell
+    translate([0, 0, 10]) union() {
+        difference() {
+            rotate([0, 180, 0]) pcbHalfShell(3.5, isMirror=true);
+            // Antenna cut-out
+            translate([22, -14.2, -1]) cube(size=[10, 18.5, 2], center=true);
+            // Make lower pins shorter
+            lowerConCutout();
+        }
+        // Antenna gap closer
+        translate([16.35 + 3.25, -14.2, 0.15]) cube(size=[3.5, 18.5, 1.7], center=true);
+    }
     // PCB mockup
     // translate([0, -3, 0.8]) pcb();
 }
@@ -85,9 +95,9 @@ module pcbShell(){
 
 // Cutting plane view
 
-#pcb();
+// pcb();
 
 intersection(){
     pcbShell();
-    translate([27, 0, 0]) cube(size=[50, 100, 50], center=true);
+    // translate([27, 0, 0]) cube(size=[50, 100, 50], center=true);
 }
