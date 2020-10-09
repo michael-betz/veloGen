@@ -1037,7 +1037,7 @@ L Device:R R8
 U 1 1 5F746E37
 P 1750 5250
 F 0 "R8" H 1650 5250 50  0000 R CNN
-F 1 "13k3" H 1650 5350 50  0000 R CNN
+F 1 "15k" H 1650 5350 50  0000 R CNN
 F 2 "Resistor_SMD:R_0805_2012Metric" V 1680 5250 50  0001 C CNN
 F 3 "~" H 1750 5250 50  0001 C CNN
 	1    1750 5250
@@ -1094,7 +1094,7 @@ L Device:R R9
 U 1 1 5F73EEE9
 P 2000 5050
 F 0 "R9" V 1900 4950 50  0000 R CNN
-F 1 "41k2" V 1800 4950 50  0000 R CNN
+F 1 "47k" V 1800 4950 50  0000 R CNN
 F 2 "Resistor_SMD:R_0805_2012Metric" V 1930 5050 50  0001 C CNN
 F 3 "~" H 2000 5050 50  0001 C CNN
 	1    2000 5050
@@ -1155,4 +1155,10 @@ F 3 "" H 6500 3050 50  0001 C CNN
 	1    6500 3050
 	1    0    0    -1  
 $EndComp
+Text Notes 7000 6850 0    50   ~ 0
+IO12 should be 0V at boot to get 3V3 flash voltage\nworkaround:\nespefuse.py set_flash_voltage 3.3V
+Text Notes 6850 2900 0    50   ~ 0
+should be 0603, 10uF
+Text Notes 6950 1800 0    50   ~ 0
+should be 0603, 10uF
 $EndSCHEMATC

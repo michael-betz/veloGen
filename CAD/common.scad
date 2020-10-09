@@ -1,7 +1,9 @@
 $fn=75;
 
 // Bike frame mock-up
-rPipe = 35.4/2;
+rPipe = 35.4 / 2;  // vertical pipe
+// rPipe = 32.1 / 2; // horizontal pipe
+
 module bikeFrame() {
   color("DarkGray") union() {
     // Frame
@@ -35,14 +37,14 @@ module pin(){
 }
 
 // D shaped, shall conform to bike frame
-module holder(){
+module holder(r_outer){
     difference(){
         union(){
-            translate([0, 0, -9]) rotate([90, 0, 0]) cylinder(r=rPipe+2, h=64, center=true);
-            translate([-15.0,  25, 0]) rotate([0, -65, 0]) pin();
-            translate([-15.0, -25, 0]) rotate([0, -65, 0]) pin();
-            translate([ 15.0,  25, 0]) rotate([0,  65, 0]) pin();
-            translate([ 15.0, -25, 0]) rotate([0,  65, 0]) pin();
+            translate([0, 0, -9]) rotate([90, 0, 0]) cylinder(r=r_outer+2, h=64, center=true);
+            // translate([-15.0,  25, 0]) rotate([0, -65, 0]) pin();
+            // translate([-15.0, -25, 0]) rotate([0, -65, 0]) pin();
+            // translate([ 15.0,  25, 0]) rotate([0,  65, 0]) pin();
+            // translate([ 15.0, -25, 0]) rotate([0,  65, 0]) pin();
         }
         translate([0, 0, -25]) cube(size=[50, 100, 50], center=true);
     }
