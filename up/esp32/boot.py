@@ -27,3 +27,36 @@ def start_ap():
 webrepl.start()
 start_sta('***REMOVED***')
 # start_ap()
+
+from velogen import Velogen
+vg = Velogen()
+
+scr = 1
+
+
+def btn_l():
+    global scr
+    scr -= 1
+    if scr < 0:
+        scr = 0
+
+
+def btn_dyn():
+    vg.EN_DYN.value(not vg.EN_DYN.value())
+
+
+def btn_r():
+    global scr
+    scr += 1
+    if scr > 3:
+        scr = 3
+
+
+vg.btns.cbs[0] = btn_l
+vg.btns.cbs[1] = btn_dyn
+vg.btns.cbs[3] = btn_r
+
+while True:
+    vg.btns.update()
+    vg.draw_screen(scr)
+    sleep(0.05)

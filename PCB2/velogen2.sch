@@ -1161,4 +1161,6 @@ Text Notes 6850 2900 0    50   ~ 0
 should be 0603, 10uF
 Text Notes 6950 1800 0    50   ~ 0
 should be 0603, 10uF
+Text Notes 4500 1500 0    50   ~ 0
+5 W, 10 V Zener or TVS is\nmandatorry on +Batt\nin case of battery has\nbad connection
 $EndSCHEMATC

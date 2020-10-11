@@ -1,5 +1,6 @@
 *bak
 .ipynb_checkpoints
 *-cache.lib
+*.pyc
 fp-info-cache
 up/wpw.py
