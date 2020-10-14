@@ -1,0 +1,7 @@
+{
+    "_wifi_ssid": "",
+    "_wifi_pw": "",
+    "hostname": "velogen",
+    "enable_ota": true,
+    "timezone": "PST8PDT,M3.2.0,M11.1.0"
+}
