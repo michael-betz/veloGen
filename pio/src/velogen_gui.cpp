@@ -5,12 +5,15 @@
 #include "lv_font.h"
 #include "ssd1306.h"
 #include "ina219.h"
+#include "touch.h"
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
 
+#define N_SCREENS 4
+
 // screen layout: big number + unit on top left
-void big_num(bool isInit, int type)
+static void big_num(bool isInit, int type, unsigned btns)
 {
     static t_label big_lbl;
     static const char * const units[] = {"km/h", "mA", "mV", "mW"};
@@ -51,25 +54,44 @@ void big_num(bool isInit, int type)
     tmp_kmh++;
 }
 
-// -1 = just update, don't change
-void draw_screen(int screen_id)
+// called in the main loop, reads buttons,
+// chooses which screen to initialize / refresh
+void draw_screen()
 {
-    static int cur_screen_id = -1;
-    bool isInit = false;
-    if (screen_id >= 0 && screen_id != cur_screen_id) {
+    static int scr_id = 0;
+    static bool isInit = true;
+
+    // corresponding bit is 1 on button released
+    unsigned btns = touch_read();
+
+    // left and right buttons switch screens
+    if (btns & (1 << 0)) {
+        scr_id--;
+        if (scr_id < 0)
+            scr_id = 0;
+    }
+
+    if (btns & (1 << 3)) {
+        scr_id++;
+        if (scr_id >= N_SCREENS)
+            scr_id = N_SCREENS - 1;
+    }
+
+    // check if screen needs to be re-drawn completely
+    if (btns & 0x09) {
         isInit = true;
         fill(0);
         // draw_status();
-        cur_screen_id = screen_id;
     }
 
-    switch (cur_screen_id) {
+    switch (scr_id) {
         case 0:
         case 1:
         case 2:
         case 3:
-            big_num(isInit, cur_screen_id);
+            big_num(isInit, scr_id, btns);
             break;
     }
     ssd_send();
+    isInit = false;
 }

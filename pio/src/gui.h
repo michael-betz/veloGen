@@ -33,6 +33,4 @@ void lv_init_label(t_label *lbl, int x0, int y0, int y_shift, lv_font_t *fnt, co
 void lv_update_label(t_label *lbl, const std::string &txt);
 void lv_print(const std::string &str);
 
-void draw_screen(int screen_id);
-
 #endif
