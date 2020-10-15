@@ -1,11 +1,10 @@
-#include <string>
-#include <sstream>
+// #include <string>
 #include "Arduino.h"
 #include "gui.h"
 #include "lv_font.h"
 #include "ssd1306.h"
 #include "ina219.h"
-#include "touch.h"
+#include "velogen.h"
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
@@ -15,8 +14,10 @@ extern lv_font_t concert_one_50;
 // screen layout: big number + unit on top left
 static void big_num(bool isInit, int type, unsigned btns)
 {
+    char buff[32];
     static t_label big_lbl;
     static const char * const units[] = {"km/h", "mA", "mV", "mW"};
+
     if (isInit) {
         // Static content which will not be refreshed
         lv_init_label(&big_lbl, 127, 0, 0, &noto_sans_12, units[type], LV_RIGHT);
@@ -25,33 +26,29 @@ static void big_num(bool isInit, int type, unsigned btns)
         lv_init_label(&big_lbl, 64, 18, 0, &concert_one_50, "22222", LV_CENTER);
     }
 
-    static int tmp_kmh = 0;
-    std::ostringstream bla;
-
     int volts = inaV();
     int amps = inaI();
 
     // clears and prints dynamic content into BB
     switch (type) {
         case 0:
-            bla << tmp_kmh / 10 << "." << tmp_kmh % 10;
+            snprintf(buff, sizeof(buff), "%.1f", g_speed);
             break;
 
         case 1:
-            bla << amps;
+            snprintf(buff, sizeof(buff), "%d", amps);
             break;
 
         case 2:
-            bla << volts;
+            snprintf(buff, sizeof(buff), "%d", volts);
             break;
 
         case 3:
-            bla << volts * amps / 1000;
+            snprintf(buff, sizeof(buff), "%d", volts * amps / 1000);
             break;
     }
 
-    lv_update_label(&big_lbl, bla.str());
-    tmp_kmh++;
+    lv_update_label(&big_lbl, buff);
 }
 
 // called in the main loop, reads buttons,
@@ -64,13 +61,18 @@ void draw_screen()
     // corresponding bit is 1 on button released
     unsigned btns = touch_read();
 
-    // left and right buttons switch screens
+    // left button: switch screen
     if (btns & (1 << 0)) {
         scr_id--;
         if (scr_id < 0)
             scr_id = 0;
     }
 
+    // toggle dynamo
+    if (btns & (1 << 1))
+        digitalWrite(P_DYN, !digitalRead(P_DYN));
+
+    // right button: switch screen
     if (btns & (1 << 3)) {
         scr_id++;
         if (scr_id >= N_SCREENS)

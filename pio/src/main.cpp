@@ -20,7 +20,7 @@
 #include "Wire.h"
 #include "ssd1306.h"
 #include "ina219.h"
-#include "touch.h"
+#include "velogen.h"
 
 #include "lv_font.h"
 #include "velogen_gui.h"
@@ -61,7 +61,7 @@ void setup()
 	setCpuFrequencyMhz(80);
 
 	//------------------------------
-	// init stuff
+	// init network stuff
 	//------------------------------
 	// forward serial characters to web-console
 	web_console_init();
@@ -88,25 +88,18 @@ void setup()
 		esp_get_minimum_free_heap_size()
 	);
 
-	// init oled
-	Wire.begin(12, 14, 800000);
-	ssd_init();
-	// ssd_contrast(0);
-
-	inaInit();
-	inaBus32(false);
-	inaPga(0);
-	inaAvg(7);
-
-	touch_init();
+	velogen_init();
 }
 
 void loop() {
-	static int frm=0, screen=0;
+	static int frm=0;
 
 	draw_screen();
+	int dcnt = counter_read();
+	if (dcnt)
+		log_d("dcnt %d", dcnt);
 
 	ArduinoOTA.handle();
 	frm++;
-	delay(20);
+	delay(50);
 }
