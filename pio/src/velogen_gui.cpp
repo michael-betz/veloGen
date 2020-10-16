@@ -1,15 +1,30 @@
 // #include <string>
 #include "Arduino.h"
+#include "string.h"
 #include "gui.h"
 #include "lv_font.h"
 #include "ssd1306.h"
 #include "ina219.h"
+#include "esp_comms.h"
+#include "velo_wifi.h"
 #include "velogen.h"
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
 
 #define N_SCREENS 4
+
+// Label for the status bar
+static t_label stat_lbl = {
+    .x = 0,
+    .y = 0,
+    .x0 = 0,
+    .y0 = 0,
+    .x1 = 98,
+    .y1 = 15,
+    .align = LV_LEFT,
+    .fnt = &noto_sans_12
+};
 
 // screen layout: big number + unit on top left
 static void big_num(bool isInit, int type, unsigned btns)
@@ -51,9 +66,13 @@ static void big_num(bool isInit, int type, unsigned btns)
     lv_update_label(&big_lbl, buff);
 }
 
+
+static char status_text[24];
+
 // called in the main loop, reads buttons,
 // chooses which screen to initialize / refresh
-void draw_screen()
+// returns button states
+unsigned draw_screen()
 {
     static int scr_id = 0;
     static bool isInit = true;
@@ -72,6 +91,14 @@ void draw_screen()
     if (btns & (1 << 1))
         digitalWrite(P_DYN, !digitalRead(P_DYN));
 
+    // toggle wifi
+    if (btns & (1 << 2)) {
+        if (WiFi.isConnected())
+            WiFi.disconnect(true, true);
+        else
+            tryConnect();
+    }
+
     // right button: switch screen
     if (btns & (1 << 3)) {
         scr_id++;
@@ -80,10 +107,10 @@ void draw_screen()
     }
 
     // check if screen needs to be re-drawn completely
-    if (btns & 0x09) {
+    if (isInit || btns & 0x09) {
         isInit = true;
         fill(0);
-        // draw_status();
+        lv_update_label(&stat_lbl, status_text);
     }
 
     switch (scr_id) {
@@ -96,4 +123,11 @@ void draw_screen()
     }
     ssd_send();
     isInit = false;
+    return btns;
+}
+
+void setStatus(const char *s)
+{
+    strcpy(status_text, s);
+    lv_update_label(&stat_lbl, status_text);
 }

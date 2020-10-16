@@ -27,8 +27,9 @@ typedef struct {
     lv_font_t *fnt;
 } t_label;
 
-// x0, y0 is the top left font anchor point
-// size of the bounding box is infered from `init`
+// x0, y0 is the anchor point, which is on the top left / middle / right
+// depending on the chosen alignment
+// size of the bounding box, which is erased for redraws, is inferred from `init` text
 void lv_init_label(t_label *lbl, int x0, int y0, int y_shift, lv_font_t *fnt, const char *init, t_align a);
 void lv_update_label(t_label *lbl, const std::string &txt);
 void lv_print(const std::string &str);

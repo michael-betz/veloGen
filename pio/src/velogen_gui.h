@@ -1,6 +1,7 @@
 #ifndef VELOGEN_GUI_H
 #define VELOGEN_GUI_H
 
-void draw_screen();
+unsigned draw_screen();
+void setStatus(const char *s);
 
 #endif
