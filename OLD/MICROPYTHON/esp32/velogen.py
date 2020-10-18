@@ -14,7 +14,7 @@ from time import sleep
 wlan = None
 
 
-def start_sta(ssid='***REMOVED***'):
+def start_sta(ssid=''):
     global wlan
     wlan = network.WLAN(network.STA_IF)
     if not wlan.active() or not wlan.isconnected():
@@ -55,7 +55,7 @@ class Velogen():
             start_ap()
             self.gui.lbl_status.value('AP: velogen')
         else:
-            start_sta('***REMOVED***')
+            start_sta('')
             self.gui.lbl_status.value(wlan.config('essid'))
 
     def toggleDyn(self):

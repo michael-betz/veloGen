@@ -102,8 +102,8 @@ void wifiInit()
     ESP_ERROR_CHECK( esp_wifi_set_ps(WIFI_PS_MODEM) );
     wifi_config_t sta_config = {
         .sta = {
-            .ssid = "Narrenzunft-BE",
-            .password = "***REMOVED***",
+            .ssid = "",
+            .password = "",
             .bssid_set = false
         }
     };

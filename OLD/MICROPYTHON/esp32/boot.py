@@ -8,7 +8,7 @@ from time import sleep
 wlan = None
 
 
-def start_sta(ssid='***REMOVED***'):
+def start_sta(ssid):
     global wlan
     wlan = network.WLAN(network.STA_IF)
     if not wlan.active() or not wlan.isconnected():
@@ -25,5 +25,5 @@ def start_ap():
 
 
 webrepl.start()
-start_sta('***REMOVED***')
+start_sta('')
 # start_ap()

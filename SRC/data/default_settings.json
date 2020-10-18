@@ -6,8 +6,6 @@
     "touch_threshold": 12,
     "sleep_timeout": 300,
     "wifis": {
-        "***REMOVED***": "***REMOVED***",
-        "***REMOVED***": "***REMOVED***",
-        "lbnl-visitor": ""
+        "INSERT_SSID": "INSERT_PASSWORD"
     }
 }
