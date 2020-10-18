@@ -1,11 +1,11 @@
 // #include <string>
 #include "Arduino.h"
+#include "WiFi.h"
 #include "string.h"
 #include "gui.h"
 #include "lv_font.h"
 #include "ssd1306.h"
 #include "ina219.h"
-#include "esp_comms.h"
 #include "velo_wifi.h"
 #include "velogen.h"
 

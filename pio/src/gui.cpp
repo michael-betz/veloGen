@@ -3,11 +3,11 @@
 #include "ssd1306.h"
 #include "gui.h"
 
-void lv_print(const std::string &str)
+void lv_print(const char *str)
 {
     reset_bb();
-    for (unsigned i=0; i<str.length(); i++)
-        draw_char(str[i]);
+    while (*str)
+        draw_char(*str++);
 }
 
 // GUI label stuff
@@ -36,7 +36,7 @@ void lv_init_label(t_label *lbl, int x, int y, int y_shift, lv_font_t *fnt, cons
     lv_update_label(lbl, init);
 }
 
-void lv_update_label(t_label *lbl, const std::string &txt)
+void lv_update_label(t_label *lbl, const char *txt)
 {
     int w=0, h=0;
 
@@ -47,13 +47,13 @@ void lv_update_label(t_label *lbl, const std::string &txt)
     if (lbl->align == LV_LEFT) {
         set_cursor(lbl->x, lbl->y);
     } else if (lbl->align == LV_CENTER) {
-        get_bb(txt.c_str(), &w, &h);
+        get_bb(txt, &w, &h);
         set_cursor(lbl->x - w / 2, lbl->y);
     } else if (lbl->align == LV_RIGHT) {
-        get_bb(txt.c_str(), &w, &h);
+        get_bb(txt, &w, &h);
         set_cursor(lbl->x - w, lbl->y);
     }
     set_bb(lbl->x0, lbl->x1, lbl->y0, lbl->y1);
-    for (unsigned i=0; i<txt.length(); i++)
-        draw_char(txt[i]);
+    while (*txt)
+        draw_char(*txt++);
 }

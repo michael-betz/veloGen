@@ -11,31 +11,13 @@
 #include "ArduinoOTA.h"
 #include "SPIFFS.h"
 #include "rom/rtc.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "esp_comms.h"
-#include "web_console.h"
 #include "json_settings.h"
-
-#include "Wire.h"
-#include "ssd1306.h"
-#include "ina219.h"
 #include "velogen.h"
-
-#include "lv_font.h"
-#include "velogen_gui.h"
 
 void setup()
 {
 	// This freezes the CPU after wake up from deep sleep :(
 	// setCpuFrequencyMhz(80);
-
-	//------------------------------
-	// init network stuff
-	//------------------------------
-	// forward serial characters to web-console
-	web_console_init();
 
 	// report status
 	log_w(
@@ -52,40 +34,28 @@ void setup()
 	set_settings_file("/spiffs/settings.json", "/spiffs/default_settings.json");
 
 	velogen_init();
+
+	int frm=0;
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	while (true) {
+		velogen_loop();
+
+		if ((frm % 100) == 0) {
+			time_t now = time(NULL);
+			struct tm timeinfo = {0};
+			char strftime_buf[64];
+			localtime_r(&now, &timeinfo);
+			strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+			log_i("Local Time: %s (%ld)", strftime_buf, now);
+		}
+
+		ArduinoOTA.handle();
+		frm++;
+		// Run with a fixed 20 Hz cycle rate
+		vTaskDelayUntil(&xLastWakeTime, 50 / portTICK_PERIOD_MS);
+	}
 }
 
 void loop() {
-	unsigned curTs = millis();
-	static unsigned lastTick = 0;
-	static int frm=0;
-
-	if (draw_screen())
-		lastTick = curTs;
-
-	if (counter_read())
-		lastTick = curTs;
-
-	if ((curTs - lastTick) > g_sleepTimeout)
-	{
-		log_w("Going to sleep now");
-		delay(1000);
-		inaOff();
-		ssd_poweroff();
-		digitalWrite(P_DYN, 0);
-		prepare_sleep();
-  		esp_deep_sleep_start();
-	}
-
-	if ((frm % 100) == 0) {
-		time_t now = time(NULL);
-		struct tm timeinfo = {0};
-		char strftime_buf[64];
-		localtime_r(&now, &timeinfo);
-		strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-		log_i("Local Time: %s (%ld)", strftime_buf, now);
-	}
-
-	ArduinoOTA.handle();
-	frm++;
-	delay(50);
+	vTaskDelete(NULL);
 }

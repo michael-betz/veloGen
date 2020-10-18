@@ -1,45 +1,11 @@
 #include "Arduino.h"
-
+#include "ArduinoOTA.h"
+#include "WiFi.h"
 #include "SPIFFS.h"
 #include "json_settings.h"
-#include "esp_comms.h"
-#include "web_console.h"
 #include "lwip/apps/sntp.h"
-
 #include "velogen.h"
 #include "velogen_gui.h"
-
-
-// Web socket RX data received callback
-static void on_ws_data(
-	AsyncWebSocket * server,
-	AsyncWebSocketClient * client,
-	AwsEventType type,
-	void * arg,
-	uint8_t *data,
-	size_t len
-) {
-	switch (data[0]) {
-		case 'a':
-			wsDumpRtc(client);  // read rolling log buffer in RTC memory
-			break;
-
-		case 'b':
-			settings_ws_handler(client, data, len);  // read / write settings.json
-			break;
-
-		case 'r':
-			ESP.restart();
-			break;
-
-		case 'h':
-			client->printf(
-				"h{\"heap\": %d, \"min_heap\": %d}",
-				esp_get_free_heap_size(), esp_get_minimum_free_heap_size()
-			);
-			break;
-	}
-}
 
 // go through scan results and look for the first known wifi
 static void scan_done(WiFiEvent_t event, WiFiEventInfo_t info)
@@ -77,19 +43,22 @@ static void got_ip(WiFiEvent_t event, WiFiEventInfo_t info)
 {
 	log_i("got an IP. NICE!!");
 
-	// init web-server
-	startServices(SPIFFS, "/", on_ws_data);
+	// trigger time sync
+	sntp_setoperatingmode(SNTP_OPMODE_POLL);
+	sntp_setservername(0, (char *)"pool.ntp.org");
+	sntp_init();
 
-	g_sleepTimeout = 300000;
+	ArduinoOTA.setHostname(jGetS(getSettings(), "hostname", WIFI_HOST_NAME));
+	ArduinoOTA.begin();
 }
 
 static void got_discon(WiFiEvent_t event, WiFiEventInfo_t info)
 {
 	log_i("got disconnected :(");
 	setStatus("No wifi");
-	stopServices();
+	sntp_stop();
+	ArduinoOTA.end();
 	WiFi.mode(WIFI_OFF);
-	g_sleepTimeout = 30000;
 }
 
 void initVeloWifi()

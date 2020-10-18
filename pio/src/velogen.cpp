@@ -1,20 +1,17 @@
 #include "Arduino.h"
+// #include "mqtt_client.h"
 #include "driver/pcnt.h"
 #include "Wire.h"
 #include "ssd1306.h"
 #include "ina219.h"
 #include "json_settings.h"
 #include "velo_wifi.h"
+#include "velogen_gui.h"
 #include "velogen.h"
 
-// #include "lv_font.h"
-// #include "velogen_gui.h"
-
-
 #define N_PINS 4
-#define THRESHOLD 12
 
-unsigned g_sleepTimeout = 30000;
+static unsigned sleepTimeout = 30000;
 
 // Number of wheel rotations since power up
 RTC_DATA_ATTR unsigned g_wheelCnt;
@@ -30,10 +27,19 @@ static uint16_t tinit[N_PINS];
 // Current delta values
 static int tpv[N_PINS];
 
+float g_speed=0;
+
+// settings from the .json file
+static int um_p_pulse=0, touch_threshold=0;
 
 // Pulse counter to count wheel rotations
 static void counter_init()
 {
+	// wheel circumference = 2155 mm
+	// pulses / revolution = 13
+	// distance / pulse = 165769 um
+	um_p_pulse = jGetI(getSettings(), "um_p_pulse", 165769);
+
 	pcnt_config_t pcnt_config = {
 		// Set PCNT input signal and control GPIOs
 		.pulse_gpio_num = P_AC,
@@ -63,7 +69,6 @@ static void counter_init()
 	pcnt_counter_resume(PCNT_UNIT_0);
 }
 
-float g_speed = 0;
 
 int counter_read()
 {
@@ -81,7 +86,7 @@ int counter_read()
 	// TODO convert this calculation and IIR filter to fixed point integer
 	// [milli counts / milli second] = [counts / second]
 	float dC_dT = diffCnt * 1000.0 / (float)(ts - ts_);
-	dC_dT = dC_dT * WHEEL_C / (float)WHEEL_POLES * 60.0 * 60.0 / 1000.0 / 1000.0;  // [km / hour]
+	dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
 	g_speed += 0.05 * (dC_dT - g_speed);
 
 	ts_ = ts;
@@ -90,6 +95,8 @@ int counter_read()
 
 static void touch_init()
 {
+	touch_threshold = jGetI(getSettings(), "touch_threshold", 12);
+
 	// Arduino API is broken, use IDF one
 	touch_pad_init();
 	touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V5);
@@ -100,25 +107,30 @@ static void touch_init()
 	}
 }
 
-void prepare_sleep()
+void velogen_sleep()
 {
-	// Initialize touch pad peripheral.
-	// The default fsm mode is software trigger mode.
+	// Switch off OLED, shunt and dynamo
+	inaOff();
+	ssd_poweroff();
+	digitalWrite(P_DYN, 0);
+
+	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
-	// If use touch pad wake up, should set touch sensor FSM mode at 'TOUCH_FSM_MODE_TIMER'.
 	touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
 	// Set reference voltage for charging/discharging
 	touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V5);
 	touch_pad_set_meas_time(0xFFFF, 0x3000);
 	//init RTC IO and mode for touch pad.
 	for (int i=0; i<N_PINS; i++) {
-		touch_pad_config(tPins[i], tinit[i] - THRESHOLD);
+		touch_pad_config(tPins[i], tinit[i] - touch_threshold);
 	}
 	esp_sleep_enable_touchpad_wakeup();
 
 	// enable wheel pulse as wakeup source
-	// TODO doesn't work :(
 	esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ALL_LOW);
+
+	// ZzzZZZzzzZZ
+	esp_deep_sleep_start();
 }
 
 // if a button has been released, sets its bit in return value
@@ -131,7 +143,7 @@ unsigned touch_read()
 		uint16_t tmp;
 		touch_pad_read(tPins[i], &tmp);
 		tpv[i] = tinit[i] - tmp;
-		if (tpv[i] > THRESHOLD) {
+		if (tpv[i] > touch_threshold) {
 			state |= 1 << i;
 		} else if ((state_ >> i) & 1) {
 			release |= 1 << i;
@@ -145,6 +157,57 @@ unsigned touch_read()
 
 	return release;
 }
+
+// esp_mqtt_client_handle_t client;
+
+// static int mqtt_event_handler(esp_mqtt_event_handle_t event)
+// {
+//     int msg_id;
+//     // your_context_t *context = event->context;
+//     switch (event->event_id) {
+//         case MQTT_EVENT_CONNECTED:
+//             log_i("MQTT_EVENT_CONNECTED");
+//             msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
+//             log_i("sent publish successful, msg_id=%d", msg_id);
+
+//             msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+//             log_i("sent subscribe successful, msg_id=%d", msg_id);
+
+//             msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
+//             log_i("sent subscribe successful, msg_id=%d", msg_id);
+
+//             msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
+//             log_i("sent unsubscribe successful, msg_id=%d", msg_id);
+//             break;
+//         case MQTT_EVENT_DISCONNECTED:
+//             log_i("MQTT_EVENT_DISCONNECTED");
+//             break;
+
+//         case MQTT_EVENT_SUBSCRIBED:
+//             log_i("MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+//             msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
+//             log_i("sent publish successful, msg_id=%d", msg_id);
+//             break;
+//         case MQTT_EVENT_UNSUBSCRIBED:
+//             log_i("MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+//             break;
+//         case MQTT_EVENT_PUBLISHED:
+//             log_i("MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+//             break;
+//         case MQTT_EVENT_DATA:
+//             log_i("MQTT_EVENT_DATA");
+//             log_i("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+//             log_i("DATA=%.*s\r\n", event->data_len, event->data);
+//             break;
+//         case MQTT_EVENT_ERROR:
+//             log_i("MQTT_EVENT_ERROR");
+//             break;
+//         default:
+//             log_i("Other event id:%d", event->event_id);
+//             break;
+//     }
+//     return 0;
+// }
 
 void velogen_init()
 {
@@ -171,7 +234,28 @@ void velogen_init()
 	setenv("TZ", jGetS(getSettings(), "timezone", "PST8PDT"), 1);
 	tzset();
 
-	g_sleepTimeout = 30000;
+	sleepTimeout = jGetI(getSettings(), "sleep_timeout", 30) * 1000;
 	initVeloWifi();
 	tryConnect();
+
+	// esp_mqtt_client_config_t mqtt_cfg;
+	// mqtt_cfg.uri = "mqtt://roesti";
+	// mqtt_cfg.event_handle = mqtt_event_handler;
+	// client = esp_mqtt_client_init(&mqtt_cfg);
+ //    esp_mqtt_client_start(client);
+}
+
+void velogen_loop()
+{
+	unsigned curTs = millis();
+	static unsigned lastTick = 0;  // last TS when wheel moved / button pushed
+
+	if (draw_screen())
+		lastTick = curTs;
+
+	if (counter_read())
+		lastTick = curTs;
+
+	if ((curTs - lastTick) > sleepTimeout)
+		velogen_sleep();
 }

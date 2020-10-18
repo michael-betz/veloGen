@@ -2,6 +2,9 @@
     "hostname": "velogen",
     "enable_ota": true,
     "timezone": "PST8PDT,M3.2.0,M11.1.0",
+    "um_p_pulse": 165769,
+    "touch_threshold": 12,
+    "sleep_timeout": 30,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }

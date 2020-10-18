@@ -1,7 +1,6 @@
 #ifndef GUI_H
 #define GUI_H
 
-#include <string>
 #include "lv_font.h"
 
 //-----------------------------------------------
@@ -31,7 +30,7 @@ typedef struct {
 // depending on the chosen alignment
 // size of the bounding box, which is erased for redraws, is inferred from `init` text
 void lv_init_label(t_label *lbl, int x0, int y0, int y_shift, lv_font_t *fnt, const char *init, t_align a);
-void lv_update_label(t_label *lbl, const std::string &txt);
-void lv_print(const std::string &str);
+void lv_update_label(t_label *lbl, const char *txt);
+void lv_print(const char *str);
 
 #endif
