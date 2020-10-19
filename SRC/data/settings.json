@@ -5,6 +5,7 @@
     "um_p_pulse": 165769,
     "touch_threshold": 12,
     "sleep_timeout": 300,
+    "mqtt_url": "mqtts://mqtt.eclipse.org",
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }

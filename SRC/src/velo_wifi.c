@@ -131,6 +131,9 @@ static int mqtt_event_handler(esp_mqtt_event_handle_t event)
 	return 0;
 }
 
+extern const char DST_Root_CA_X3_pem[] asm("_binary_DST_Root_CA_X3_pem_start");
+extern const char DST_Root_CA_X3_pem_e[] asm("_binary_DST_Root_CA_X3_pem_end");
+
 void initVeloWifi()
 {
 	//Initialize NVS
@@ -165,6 +168,15 @@ void initVeloWifi()
 	esp_mqtt_client_config_t mqtt_cfg;
 	memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
 	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "mqtt://roesti");
+	// log_i("MQTT broker @ %s", mqtt_cfg.uri);  // careful, URL may contain PW
+
+	//_DST_Root_CA_X3.pem to verify server public keys are legit
+	// copy of /etc/ssl/certs/DST_Root_CA_X3.pem
+	// matching broker configuration:
+	// https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
+	mqtt_cfg.cert_pem = DST_Root_CA_X3_pem;
+	mqtt_cfg.cert_len = DST_Root_CA_X3_pem_e - DST_Root_CA_X3_pem;
+
 	mqtt_cfg.event_handle = mqtt_event_handler;
 	mqtt_cfg.disable_auto_reconnect = true;
 	mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
