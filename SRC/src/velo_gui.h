@@ -2,6 +2,6 @@
 #define VELO_GUI_H
 
 unsigned draw_screen();
-void setStatus(const char *s);
+void setStatus(const char *format, ...);
 
 #endif

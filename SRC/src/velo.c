@@ -1,4 +1,6 @@
 // #include "mqtt_client.h"
+#include <errno.h>
+#include <string.h>
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
@@ -10,6 +12,7 @@
 #include "ssd1306.h"
 #include "ina219.h"
 #include "json_settings.h"
+#include "mqtt_cache.h"
 #include "velo_wifi.h"
 #include "velo_gui.h"
 #include "velo.h"
@@ -68,8 +71,7 @@ static void counter_init()
 	pcnt_unit_config(&pcnt_config);
 	gpio_set_pull_mode(P_AC, GPIO_FLOATING);
 	// Configure and enable the input filter
-	// TODO fine tune filter to remove glitches at very low speed
-	pcnt_set_filter_value(PCNT_UNIT_0, 500);
+	pcnt_set_filter_value(PCNT_UNIT_0, 1023);
 	pcnt_filter_enable(PCNT_UNIT_0);
 	// Initialize PCNT's counter
 	pcnt_counter_pause(PCNT_UNIT_0);
@@ -95,7 +97,7 @@ int counter_read()
 	// [milli counts / milli second] = [counts / second]
 	float dC_dT = diffCnt * 1000.0 / (float)(ts - ts_) / portTICK_PERIOD_MS;
 	dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
-	g_speed += 0.05 * (dC_dT - g_speed);
+	g_speed += 0.03 * (dC_dT - g_speed);
 
 	ts_ = ts;
 	return diffCnt;
@@ -117,6 +119,9 @@ static void touch_init()
 
 void velogen_sleep()
 {
+	if (f_buf)
+		fclose(f_buf);
+
 	// Switch off OLED, shunt and dynamo
 	inaOff();
 	ssd_poweroff();
@@ -198,12 +203,13 @@ void velogen_init()
 
 	touch_init();
 
-	// // Set the timezone
+	// Set the timezone
 	setenv("TZ", jGetS(getSettings(), "timezone", "PST8PDT"), 1);
 	tzset();
 
 	sleepTimeout = jGetI(getSettings(), "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
 	initVeloWifi();
+	cache_init();  // open / create cache file on SPIFFS
 	tryConnect();
 }
 
@@ -211,44 +217,21 @@ void velogen_init()
 void velogen_loop()
 {
 	static int frm = 0;
-	// char buf[32];
-	unsigned buf2[4];
 
 	int curTs = xTaskGetTickCount();
-	static int ts_sleep=0, ts_con=300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
+	static int ts_sleep=0;
+	// static int ts_con=300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
 
 	g_mVolts = inaV();
 	g_mAmps = inaI();
 	if (counter_read()) {
 		ts_sleep = curTs;
-		ts_con = curTs;
+		// ts_con = curTs;
 	}
 
-	// we got space on heap for ~ 2500 measurements / 3 h of data at a 5 s rate
-	// TODO custom ring-buffer storage in a SPIFFS file
-	if ((frm % 100) == 0 && esp_get_free_heap_size() > 0x8000) {
-		time_t now = time(NULL);
-
-		buf2[0] = now;
-		buf2[1] = g_mVolts;
-		buf2[2] = g_mAmps;
-		buf2[3] = g_wheelCnt;
-		esp_mqtt_client_publish(mqtt_c, "velogen/raw", (const char *)buf2, sizeof(buf2), 1, 0);
-
-		// snprintf(buf, sizeof(buf), "%d", g_mAmps);
-		// esp_mqtt_client_publish(mqtt_c, "velogen/mA", buf, 0, 0, 0);
-
-		// snprintf(buf, sizeof(buf), "%d", g_mVolts);
-		// esp_mqtt_client_publish(mqtt_c, "velogen/mV", buf, 0, 0, 0);
-
-		// snprintf(buf, sizeof(buf), "%d", g_wheelCnt);
-		// esp_mqtt_client_publish(mqtt_c, "velogen/cnt", buf, 0, 0, 0);
-
-		// snprintf(buf, sizeof(buf), "0000000000%d", frm);
-		// esp_mqtt_client_publish(mqtt_c, "velogen/test", buf, 0, 1, 0);
-	}
-
-	// log_i("%x", esp_get_free_heap_size());
+	// 1 Hz
+	if ((frm % 20) == 0)
+		cache_handle();
 
 	if (draw_screen())
 		ts_sleep = curTs;
@@ -257,11 +240,11 @@ void velogen_loop()
 		velogen_sleep();
 
 	// we stopped, try to connect to wifi after 10s
-	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
-		tryConnect();
-		// don't try to re-connect in the next 5 minutes
-		ts_con += sleepTimeout;
-	}
+	// if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
+	// 	tryConnect();
+	// 	// don't try to re-connect in the next 5 minutes
+	// 	ts_con += sleepTimeout;
+	// }
 
 	frm++;
 }

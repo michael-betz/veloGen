@@ -143,9 +143,14 @@ unsigned draw_screen()
 	return btns;
 }
 
-void setStatus(const char *s)
+// changes status line on oled, call like printf (how cool is that!)
+void setStatus(const char *format, ...)
 {
+    va_list argptr;
+    va_start(argptr, format);
+    vsnprintf(status_text, sizeof(status_text), format, argptr);
+    va_end(argptr);
+
 	status_update_ts = xTaskGetTickCount();
-	strcpy(status_text, s);
-	lv_update_label(&stat_lbl, status_text);
+    lv_update_label(&stat_lbl, status_text);
 }

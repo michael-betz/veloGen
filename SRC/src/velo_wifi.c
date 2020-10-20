@@ -14,8 +14,8 @@
 static const char *T = "VELO_WIFI";
 
 bool isConnect = false;
+bool isMqttConnect = false;
 esp_mqtt_client_handle_t mqtt_c;
-
 
 // go through scan results and look for the first known wifi
 static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
@@ -96,39 +96,7 @@ static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id,
 	esp_mqtt_client_stop(mqtt_c);
 	// esp_mqtt_client_disconnect(mqtt_c);
 	isConnect = false;
-}
-
-static int mqtt_event_handler(esp_mqtt_event_handle_t event)
-{
-	switch (event->event_id) {
-		case MQTT_EVENT_CONNECTED:
-			log_i("MQTT_EVENT_CONNECTED");
-			break;
-		case MQTT_EVENT_DISCONNECTED:
-			log_i("MQTT_EVENT_DISCONNECTED");
-			break;
-		case MQTT_EVENT_SUBSCRIBED:
-			log_i("MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-			break;
-		case MQTT_EVENT_UNSUBSCRIBED:
-			log_i("MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
-			break;
-		case MQTT_EVENT_PUBLISHED:
-			// log_i("MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
-			break;
-		case MQTT_EVENT_DATA:
-			log_i("MQTT_EVENT_DATA");
-			log_i("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-			log_i("DATA=%.*s\r\n", event->data_len, event->data);
-			break;
-		case MQTT_EVENT_ERROR:
-			log_e("MQTT_EVENT_ERROR");
-			break;
-		default:
-			log_i("Other event id:%d", event->event_id);
-			break;
-	}
-	return 0;
+	isMqttConnect = false;
 }
 
 extern const char DST_Root_CA_X3_pem[] asm("_binary_DST_Root_CA_X3_pem_start");
@@ -167,19 +135,20 @@ void initVeloWifi()
 	// MQTT client
 	esp_mqtt_client_config_t mqtt_cfg;
 	memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
-	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "mqtt://roesti");
-	// log_i("MQTT broker @ %s", mqtt_cfg.uri);  // careful, URL may contain PW
+	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "");
 
-	//_DST_Root_CA_X3.pem to verify server public keys are legit
+	// Root certificate to verify server public keys are legit
 	// copy of /etc/ssl/certs/DST_Root_CA_X3.pem
-	// matching broker configuration:
+	// matching broker configuration using letsencrypt:
 	// https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
 	mqtt_cfg.cert_pem = DST_Root_CA_X3_pem;
 	mqtt_cfg.cert_len = DST_Root_CA_X3_pem_e - DST_Root_CA_X3_pem;
-
-	mqtt_cfg.event_handle = mqtt_event_handler;
 	mqtt_cfg.disable_auto_reconnect = true;
+	mqtt_cfg.buffer_size = 256;
+	mqtt_cfg.out_buffer_size = 2048;
 	mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
+	if (!mqtt_c)
+		log_e("Error initializing mqtt client");
 }
 
 void tryConnect()
