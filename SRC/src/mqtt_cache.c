@@ -6,6 +6,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "mqtt_client.h"
+#include "json_settings.h"
 #include "velo_wifi.h"
 #include "velo_gui.h"
 #include "velo.h"
@@ -28,6 +29,8 @@ typedef struct {
 
 FILE *f_buf = NULL;
 
+const char* mqtt_topic = NULL;
+
 // first 4 bytes in the cache file gives the number of payload bytes
 static int f_size = 0;
 
@@ -48,6 +51,9 @@ static void cb_mqtt_discon(void *handler_args, esp_event_base_t base, int32_t ev
 
 void cache_init()
 {
+	mqtt_topic = jGetS(getSettings(), "mqtt_topic", "velogen/raw");
+	log_i("Publishing to %s", mqtt_topic);
+
 	f_buf = fopen(FILE_BUF, "r+");
 	if (!f_buf) {
 		log_w("%s: %s, creating a fresh one ...", FILE_BUF, strerror(errno));
@@ -125,7 +131,7 @@ void cache_handle()
 
 	bool isCon = isMqttConnect;
 	static char *buf = NULL;
-	static int cache_size = 0;  // [blocks]
+	static int initial_cache_size=0, cache_size=0;  // [blocks]
 	static int nTX = 0;  // [blocks]
 
 	// collect a new data point
@@ -164,7 +170,7 @@ void cache_handle()
 			}
 			fseek(f_buf, (cache_size - nTX) * sizeof(datum) + 4, SEEK_SET);
 			fread(buf, nTX * sizeof(datum), 1, f_buf);
-			msg_needs_ack = esp_mqtt_client_publish(mqtt_c, "velogen/raw", buf, nTX * sizeof(datum), 1, 0);
+			msg_needs_ack = esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * sizeof(datum), 1, 0);
 			free(buf);
 			tx_state = ST_WAIT_FOR_PUB;
 			// short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
@@ -181,8 +187,8 @@ void cache_handle()
 			if (msg_needs_ack == 0 || (last_ack > 0 && last_ack == msg_needs_ack)) {
 				last_ack = -1;
 				msg_needs_ack = -1;
-				setStatus("ACK %d / %d", nTX, cache_size);
 				cache_size -= nTX;
+				setStatus("ACK %d / %d", initial_cache_size - cache_size, initial_cache_size);
 				tx_state = ST_ONLINE_CA;
 			}
 			break;
@@ -199,6 +205,7 @@ void cache_handle()
 			if (isCon) {
 				// How many blocks are in the cache?
 				cache_size = f_size / sizeof(datum);
+				initial_cache_size = cache_size;
 				tx_state = ST_ONLINE_CA;
 			}
 			break;
@@ -207,7 +214,7 @@ void cache_handle()
 	// take care of the most recent data point (publish or cache)
 	if (isCon) {
 		// if mqtt is connected, publish immediately with QOS1
-		esp_mqtt_client_publish(mqtt_c, "velogen/raw", (const char *)&datum, sizeof(datum), 1, 0);
+		esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)&datum, sizeof(datum), 1, 0);
 	} else {
 		// append to cache file. 1.4 MB spiffs is enough for 26 h at 1 Hz
 		if (!f_buf)
