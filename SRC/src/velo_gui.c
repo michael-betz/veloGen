@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <time.h>
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
 #include "json_settings.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -13,11 +16,9 @@
 #include "velo_wifi.h"
 #include "mqtt_cache.h"
 #include "velo.h"
+#include "static_ws.h"
 #include "velo_gui.h"
 
-#include "esp_ota_ops.h"
-#include "esp_http_client.h"
-#include "esp_https_ota.h"
 
 #define N_SCREENS 5
 
@@ -92,7 +93,11 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 	static bool doUpdate=false;
 	static esp_err_t ret = -1;
 	if (isInit) {
-		lv_init_label(&ota_lbl, 63, 24, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
+		if (isConnect) {
+			startWebServer();
+			lv_init_label(&ota_lbl, 63, 16, 0, &noto_sans_12, "Webserver started", LV_CENTER);
+		}
+		lv_init_label(&ota_lbl, 63, 32, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
 		doUpdate=false;
 		ret = -1;
 	}
@@ -112,11 +117,8 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 		doUpdate = false;
 	}
 	if (btns & (1 << 1)) {
-		if (ret == ESP_OK) {
-	        if (f_buf)
-				fclose(f_buf);
-	        esp_restart();
-		}
+		if (ret == ESP_OK)
+			velogen_sleep(true);
 		doUpdate = true;
 		lv_update_label(&ota_lbl, "starting OTA!");
 	}
@@ -156,6 +158,9 @@ unsigned draw_screen()
 		isInit = true;
 		fill(0);
 		lv_update_label(&stat_lbl, status_text);
+
+		if (scr_id != 4)
+			stopWebServer();
 	}
 
 	// draw clock if no new status message for 10 s

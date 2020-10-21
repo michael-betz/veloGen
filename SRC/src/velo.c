@@ -15,7 +15,9 @@
 #include "mqtt_cache.h"
 #include "velo_wifi.h"
 #include "velo_gui.h"
+#include "static_ws.h"
 #include "velo.h"
+
 
 #define N_PINS 4
 
@@ -117,7 +119,7 @@ static void touch_init()
 	}
 }
 
-void velogen_sleep()
+void velogen_sleep(bool isReboot)
 {
 	if (f_buf)
 		fclose(f_buf);
@@ -126,6 +128,9 @@ void velogen_sleep()
 	inaOff();
 	ssd_poweroff();
 	gpio_set_level(P_DYN, 0);
+
+	if (isReboot)
+		esp_restart();
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -237,7 +242,7 @@ void velogen_loop()
 		ts_sleep = curTs;
 
 	if ((curTs - ts_sleep) > sleepTimeout)
-		velogen_sleep();
+		velogen_sleep(false);
 
 	// we stopped, try to connect to wifi after 10s
 	// if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {

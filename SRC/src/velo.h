@@ -22,7 +22,7 @@ extern int g_mAmps;  // battery current, [mA] negative = discharging
 // initalize velogen hardware
 void velogen_init();
 void velogen_loop();
-void velogen_sleep();
+void velogen_sleep(bool isReboot);
 
 // call in main loop, if a button is released, sets the corresponding bit
 // in return value

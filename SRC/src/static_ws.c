@@ -6,6 +6,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
+#include "velo.h"
 
 static const char *T = "STATIC_WS";
 
@@ -79,6 +80,108 @@ static esp_err_t index_html_get_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+// reboot
+static esp_err_t reboot_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_sendstr(req, "Rebooting ...");
+	velogen_sleep(true);
+	return ESP_OK;
+}
+
+// Handler to upload a file onto the server
+static esp_err_t upload_post_handler(httpd_req_t *req)
+{
+    char filepath[FILE_PATH_MAX];
+    FILE *fd = NULL;
+
+    const char *filename = get_path_from_uri(filepath, req->uri, sizeof(filepath));
+    if (!filename) {
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        return ESP_FAIL;
+    }
+
+    /* Filename cannot have a trailing '/' */
+    if (filename[strlen(filename) - 1] == '/') {
+        ESP_LOGE(T, "Invalid filename : %s", filename);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        return ESP_FAIL;
+    }
+
+    /* File cannot be larger than a limit */
+    if (req->content_len > 1024 * 100) {  // 100 kB limit for now
+        ESP_LOGE(T, "File too large : %d bytes", req->content_len);
+        /* Respond with 400 Bad Request */
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File size must be less than 100 kB");
+        return ESP_FAIL;
+    }
+
+    fd = fopen(filepath, "w");
+    if (!fd) {
+        ESP_LOGE(T, "Failed to create file : %s", filepath);
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(T, "Receiving file : %s...", filename);
+
+    /* Retrieve the pointer to scratch buffer for temporary storage */
+    char *buf = scratch;
+    int received;
+
+    /* Content length of the request gives
+     * the size of the file being uploaded */
+    int remaining = req->content_len;
+
+    while (remaining > 0) {
+
+        ESP_LOGI(T, "Remaining size : %d", remaining);
+        /* Receive the file part by part into a buffer */
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                /* Retry if timeout occurred */
+                continue;
+            }
+
+            /* In case of unrecoverable error,
+             * close and delete the unfinished file*/
+            fclose(fd);
+            unlink(filepath);
+
+            ESP_LOGE(T, "File reception failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file");
+            return ESP_FAIL;
+        }
+
+        /* Write buffer content to file on storage */
+        if (received && (received != fwrite(buf, 1, received, fd))) {
+            /* Couldn't write everything to file!
+             * Storage may be full? */
+            fclose(fd);
+            unlink(filepath);
+
+            ESP_LOGE(T, "File write failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage");
+            return ESP_FAIL;
+        }
+
+        /* Keep track of remaining size of
+         * the file left to be uploaded */
+        remaining -= received;
+    }
+
+    /* Close file upon upload completion */
+    fclose(fd);
+    ESP_LOGI(T, "File reception complete");
+    httpd_resp_set_status(req, HTTPD_200);
+	httpd_resp_send(req, NULL, 0);  // Response body can be empty
+    return ESP_OK;
+}
+
 // Handler to download a file kept on SPIFFS
 static esp_err_t download_get_handler(httpd_req_t *req)
 {
@@ -112,6 +215,9 @@ static esp_err_t download_get_handler(httpd_req_t *req)
 		return ESP_FAIL;
 	}
 
+	// to stop firefox from bitching when testing the javascript
+	// httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
 	ESP_LOGI(T, "Sending file : %s (%ld bytes)...", filename, file_stat.st_size);
 	set_content_type_from_file(req, filename);
 
@@ -140,7 +246,7 @@ static esp_err_t download_get_handler(httpd_req_t *req)
 
 	/* Close file after sending complete */
 	fclose(fd);
-	ESP_LOGI(T, "File sending complete");
+	// ESP_LOGI(T, "File sending complete");
 
 	/* Respond with an empty chunk to signal HTTP response completion */
 	httpd_resp_send_chunk(req, NULL, 0);
@@ -149,7 +255,8 @@ static esp_err_t download_get_handler(httpd_req_t *req)
 
 
 // This handles websocket traffic
-// unfotunately needs ESP-IDF 4.2.x which is not yet av. on platformio
+// unfortunately needs ESP-IDF 4.2.x which is not yet av. on platformio
+// you can try to cheat and use the ./update_http_server.sh hack
 // static esp_err_t ws_handler(httpd_req_t *req)
 // {
 // 	uint8_t buf[128] = { 0 };
@@ -178,6 +285,9 @@ static esp_err_t download_get_handler(httpd_req_t *req)
 
 void startWebServer()
 {
+	if (server)
+		return;
+
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 	config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -190,13 +300,6 @@ void startWebServer()
 
 	// Set URI handlers
 	ESP_LOGI(T, "Registering URI handlers");
-	httpd_uri_t file_download = {
-		.uri       = "/*",  // Match all URIs of type /path/to/file
-		.method    = HTTP_GET,
-		.handler   = download_get_handler
-	};
-	httpd_register_uri_handler(server, &file_download);
-
 	// httpd_uri_t ws = {
 	// 	.uri        = "/ws",
 	// 	.method     = HTTP_GET,
@@ -205,4 +308,32 @@ void startWebServer()
 	// 	.is_websocket = true
 	// };
 	// httpd_register_uri_handler(server, &ws);
+
+	httpd_uri_t settings_upload = {
+		.uri       = "/settings.json",
+		.method    = HTTP_POST,
+		.handler   = upload_post_handler
+	};
+	httpd_register_uri_handler(server, &settings_upload);
+
+	httpd_uri_t file_reboot = {
+		.uri       = "/reboot",
+		.method    = HTTP_GET,
+		.handler   = reboot_get_handler
+	};
+	httpd_register_uri_handler(server, &file_reboot);
+
+	httpd_uri_t file_download = {
+		.uri       = "/*",  // Match all URIs of type /path/to/file
+		.method    = HTTP_GET,
+		.handler   = download_get_handler
+	};
+	httpd_register_uri_handler(server, &file_download);
+}
+
+void stopWebServer()
+{
+	if (server)
+		httpd_stop(server);
+	server = NULL;
 }
