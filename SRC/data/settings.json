@@ -7,6 +7,9 @@
     "ota_url": "https://ota_host:8000/firmware.bin",
     "mqtt_url": "mqtts://user:password@mqtt.eclipse.org",
     "mqtt_topic": "velogen/raw",
+    "log_disable": false,
+    "log_ip": "192.168.1.11",
+    "log_port": 1234,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }

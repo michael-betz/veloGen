@@ -1,6 +1,10 @@
 #include <string.h>
 #include "json_settings.h"
 #include "lwip/apps/sntp.h"
+#include "lwip/sockets.h"
+// #include "lwip/sys.h"
+#include "lwip/netdb.h"
+#include "lwip/dns.h"
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_wifi.h"
@@ -19,6 +23,67 @@ extern const char DST_Root_CA_X3_pem_e[] asm("_binary_DST_Root_CA_X3_pem_end");
 bool isConnect = false;
 bool isMqttConnect = false;
 esp_mqtt_client_handle_t mqtt_c;
+
+// for sending the log output over UDP
+// receive it on the target machine with: netcat -lukp 1234
+static int dbgSock = -1;
+static struct sockaddr_in g_servaddr;
+vprintf_like_t log_original = NULL;
+
+static int udpDebugPrintf(const char *format, va_list arg)
+{
+	static char charBuffer[255];
+
+	if (log_original)
+		log_original(format, arg);
+
+	if (dbgSock < 0)
+		return 0;
+
+	int charLen = vsnprintf(charBuffer, sizeof(charBuffer), format, arg);
+	if (charLen <= 0)
+		return 0;
+
+	int ret = sendto(
+		dbgSock,
+		charBuffer,
+		charLen,
+		0,
+		(struct sockaddr *)&g_servaddr,
+		sizeof(g_servaddr)
+	);
+
+	if (ret < 0)
+		return 0;
+
+	return ret;
+}
+
+static void udp_debug_init()
+{
+	cJSON *s = getSettings();
+
+	if (dbgSock >= 0 || jGetB(s, "log_disable", false))
+		return;
+
+	// put the host's address / port into the server address structure
+	memset(&g_servaddr, 0, sizeof(g_servaddr));
+	g_servaddr.sin_family = AF_INET;
+	g_servaddr.sin_port = htons(jGetI(s, "log_port", 1234));
+	g_servaddr.sin_addr.s_addr = inet_addr(jGetS(s, "log_ip", "255.255.255.255"));
+	log_i("UDP log --> %s:%d", inet_ntoa(g_servaddr.sin_addr), ntohs(g_servaddr.sin_port));
+
+	if ((dbgSock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		log_e("Failed to create UDP socket: %s", strerror(errno));
+		return;
+	}
+
+	if (!log_original) {
+		log_w("Installed UDP logger");
+		vprintf_like_t tmp = esp_log_set_vprintf(udpDebugPrintf);
+		log_original = tmp;
+	}
+}
 
 // go through scan results and look for the first known wifi
 static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
@@ -63,7 +128,7 @@ static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, 
 		E(esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg));
 		E(esp_wifi_connect());
 		E(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
-	    E(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, jGetS(getSettings(), "hostname", WIFI_HOST_NAME)));
+		E(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, jGetS(getSettings(), "hostname", WIFI_HOST_NAME)));
 		setStatus(ssid);
 		return;
 	}
@@ -74,6 +139,8 @@ static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, 
 
 static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
+	udp_debug_init();
+
 	log_i("got an IP. NICE!!");
 
 	// trigger time sync
@@ -87,6 +154,8 @@ static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, voi
 
 static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
+	dbgSock = -1;
+
 	log_w("got disconnected :(");
 	if (event_data) {
 		wifi_event_sta_disconnected_t *ed = (wifi_event_sta_disconnected_t*)event_data;

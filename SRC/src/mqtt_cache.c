@@ -230,6 +230,6 @@ void cache_handle()
 		fseek(f_buf, 0, SEEK_SET);
 		fwrite(&f_size, 4, 1, f_buf);
 		fflush(f_buf);
-		log_d("f_size: %d", f_size);
 	}
+	log_i("f_size: %d", f_size);
 }
