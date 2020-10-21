@@ -1,10 +1,12 @@
 // next steps
-//   * count zero crossings
-//   * wifi manager (connect to knwon wifis / AP mode)
-//   * power manager (sleep when not moving)
-//   * check reset cause: brown out -- dont enable wifi
-//   * gui status bar
-//   * upload stats (mqtt?)
+// * resurrect ota
+// * resurrect html .json editor
+// * velo_server
+// * shutdown state machine (look for wifi, try upload)
+// * per trip screens
+//   * energy / charge / distance / avg speed
+// 	 * displayed at end of trip (= when stopped moving) ?
+//   * when to reset?
 
 #include <stdio.h>
 #include <time.h>

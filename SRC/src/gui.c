@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdio.h>
 #include "lv_font.h"
 #include "ssd1306.h"
 #include "gui.h"
@@ -35,9 +37,16 @@ void lv_init_label(t_label *lbl, int x, int y, int y_shift, lv_font_t *fnt, cons
     lv_update_label(lbl, init);
 }
 
-void lv_update_label(t_label *lbl, const char *txt)
+// call it like printf
+void lv_update_label(t_label *lbl, const char *format, ...)
 {
     int w=0, h=0;
+    char buf[32], *p=buf;
+
+    va_list argptr;
+    va_start(argptr, format);
+    vsnprintf(buf, sizeof(buf), format, argptr);
+    va_end(argptr);
 
     fillRect(lbl->x0, lbl->x1, lbl->y0, lbl->y1, false);
     // rect(lbl->x0, lbl->x1, lbl->y0, lbl->y1, true);  // show bb
@@ -46,13 +55,13 @@ void lv_update_label(t_label *lbl, const char *txt)
     if (lbl->align == LV_LEFT) {
         set_cursor(lbl->x, lbl->y);
     } else if (lbl->align == LV_CENTER) {
-        get_bb(txt, &w, &h);
+        get_bb(buf, &w, &h);
         set_cursor(lbl->x - w / 2, lbl->y);
     } else if (lbl->align == LV_RIGHT) {
-        get_bb(txt, &w, &h);
+        get_bb(buf, &w, &h);
         set_cursor(lbl->x - w, lbl->y);
     }
     set_bb(lbl->x0, lbl->x1, lbl->y0, lbl->y1);
-    while (*txt)
-        draw_char(*txt++);
+    while (*p)
+        draw_char(*p++);
 }

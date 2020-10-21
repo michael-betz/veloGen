@@ -13,6 +13,9 @@
 
 static const char *T = "VELO_WIFI";
 
+extern const char DST_Root_CA_X3_pem[] asm("_binary_DST_Root_CA_X3_pem_start");
+extern const char DST_Root_CA_X3_pem_e[] asm("_binary_DST_Root_CA_X3_pem_end");
+
 bool isConnect = false;
 bool isMqttConnect = false;
 esp_mqtt_client_handle_t mqtt_c;
@@ -98,9 +101,6 @@ static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id,
 	isConnect = false;
 	isMqttConnect = false;
 }
-
-extern const char DST_Root_CA_X3_pem[] asm("_binary_DST_Root_CA_X3_pem_start");
-extern const char DST_Root_CA_X3_pem_e[] asm("_binary_DST_Root_CA_X3_pem_end");
 
 void initVeloWifi()
 {

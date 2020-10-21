@@ -4,6 +4,7 @@
     "um_p_pulse": 165769,
     "touch_threshold": 12,
     "sleep_timeout": 300,
+    "ota_url": "https://ota_host:8000/firmware.bin",
     "mqtt_url": "mqtts://user:password@mqtt.eclipse.org",
     "mqtt_topic": "velogen/raw",
     "wifis": {

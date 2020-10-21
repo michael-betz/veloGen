@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "esp_log.h"
+#include "json_settings.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
@@ -10,13 +11,20 @@
 #include "ssd1306.h"
 #include "ina219.h"
 #include "velo_wifi.h"
+#include "mqtt_cache.h"
 #include "velo.h"
 #include "velo_gui.h"
+
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
+
+#define N_SCREENS 5
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
 
-#define N_SCREENS 4
+extern const char ca_cert_start[] asm("_binary_ota_void_ca_cert_pem_start");
 
 static const char *T = "VELO_GUI";
 
@@ -35,9 +43,20 @@ static t_label stat_lbl = {
 // screen layout: big number + unit on top left
 static void big_num(bool isInit, int type, unsigned btns)
 {
-	char buff[32];
 	static t_label big_lbl;
+	static bool isDyn = false;
 	static const char * const units[] = {"km/h", "mA", "mV", "mW"};
+
+	// toggle dynamo
+	if (btns & (1 << 1)) {
+		isDyn = !isDyn;
+		gpio_set_level(P_DYN, isDyn);
+		setStatus(isDyn ? "Dyn ON!" : "Dyn off");
+	}
+
+	// toggle wifi
+	if (btns & (1 << 2))
+		toggle_wifi();
 
 	if (isInit) {
 		// Static content which will not be refreshed
@@ -50,25 +69,58 @@ static void big_num(bool isInit, int type, unsigned btns)
 	// clears and prints dynamic content into BB
 	switch (type) {
 		case 0:
-			snprintf(buff, sizeof(buff), "%.1f", g_speed);
+			lv_update_label(&big_lbl, "%.1f", g_speed);
 			break;
 
 		case 1:
-			snprintf(buff, sizeof(buff), "%d", g_mAmps);
+			lv_update_label(&big_lbl, "%d", g_mAmps);
 			break;
 
 		case 2:
-			snprintf(buff, sizeof(buff), "%d", g_mVolts);
+			lv_update_label(&big_lbl, "%d", g_mVolts);
 			break;
 
 		case 3:
-			snprintf(buff, sizeof(buff), "%d", g_mVolts * g_mAmps / 1000);
+			lv_update_label(&big_lbl, "%d", g_mVolts * g_mAmps / 1000);
 			break;
 	}
-
-	lv_update_label(&big_lbl, buff);
 }
 
+static void ota_screen(bool isInit, int type, unsigned btns)
+{
+	static t_label ota_lbl;
+	static bool doUpdate=false;
+	static esp_err_t ret = -1;
+	if (isInit) {
+		lv_init_label(&ota_lbl, 63, 24, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
+		doUpdate=false;
+		ret = -1;
+	}
+	if (doUpdate) {
+		esp_http_client_config_t config = {
+			.url = jGetS(getSettings(), "ota_url", ""),
+			.cert_pem = ca_cert_start,
+			// FIXME disables security, for development only
+			.skip_cert_common_name_check = true
+		};
+		ret = esp_https_ota(&config);
+		log_w("ret: %d", ret);
+		if (ret == ESP_OK)
+			lv_update_label(&ota_lbl, "success! reboot?");
+		else
+			lv_update_label(&ota_lbl, "ret: %d", ret);
+		doUpdate = false;
+	}
+	if (btns & (1 << 1)) {
+		if (ret == ESP_OK) {
+	        if (f_buf)
+				fclose(f_buf);
+	        esp_restart();
+		}
+		doUpdate = true;
+		lv_update_label(&ota_lbl, "starting OTA!");
+	}
+}
 
 static char status_text[24];
 unsigned status_update_ts = 0;
@@ -80,7 +132,7 @@ unsigned draw_screen()
 {
 	static unsigned frm=0;
 	static int scr_id = 0;
-	static bool isInit = true, isDyn=false;
+	static bool isInit = true;
 
 	// corresponding bit is 1 on button released
 	unsigned btns = button_read();
@@ -91,17 +143,6 @@ unsigned draw_screen()
 		if (scr_id < 0)
 			scr_id = 0;
 	}
-
-	// toggle dynamo
-	if (btns & (1 << 1)) {
-		isDyn = !isDyn;
-		gpio_set_level(P_DYN, isDyn);
-		setStatus(isDyn ? "Dyn ON!" : "Dyn off");
-	}
-
-	// toggle wifi
-	if (btns & (1 << 2))
-		toggle_wifi();
 
 	// right button: switch screen
 	if (btns & (1 << 3)) {
@@ -128,12 +169,17 @@ unsigned draw_screen()
 		}
 	}
 
+	// button action common to many screens
 	switch (scr_id) {
 		case 0:
 		case 1:
 		case 2:
 		case 3:
 			big_num(isInit, scr_id, btns);
+			break;
+
+		case 4:
+			ota_screen(isInit, scr_id, btns);
 			break;
 	}
 	// Send framebuffer to OLED
@@ -146,11 +192,11 @@ unsigned draw_screen()
 // changes status line on oled, call like printf (how cool is that!)
 void setStatus(const char *format, ...)
 {
-    va_list argptr;
-    va_start(argptr, format);
-    vsnprintf(status_text, sizeof(status_text), format, argptr);
-    va_end(argptr);
+	va_list argptr;
+	va_start(argptr, format);
+	vsnprintf(status_text, sizeof(status_text), format, argptr);
+	va_end(argptr);
 
 	status_update_ts = xTaskGetTickCount();
-    lv_update_label(&stat_lbl, status_text);
+	lv_update_label(&stat_lbl, status_text);
 }
