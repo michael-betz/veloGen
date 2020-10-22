@@ -141,7 +141,7 @@ static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, voi
 {
 	udp_debug_init();
 
-	log_i("got an IP. NICE!!");
+	log_i("This is velogen " GIT);
 
 	// trigger time sync
 	sntp_setoperatingmode(SNTP_OPMODE_POLL);

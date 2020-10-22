@@ -4,6 +4,7 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "esp_wifi.h"
 #include "driver/pcnt.h"
 #include "driver/touch_pad.h"
 #include "driver/i2c.h"
@@ -121,16 +122,20 @@ static void touch_init()
 
 void velogen_sleep(bool isReboot)
 {
+	esp_wifi_disconnect();
 	if (f_buf)
 		fclose(f_buf);
+	vTaskDelay(100 / portTICK_PERIOD_MS);
+
+	if (isReboot) {
+		log_e("calling esp_restart()");
+		esp_restart();
+	}
 
 	// Switch off OLED, shunt and dynamo
 	inaOff();
 	ssd_poweroff();
 	gpio_set_level(P_DYN, 0);
-
-	if (isReboot)
-		esp_restart();
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -147,8 +152,7 @@ void velogen_sleep(bool isReboot)
 	// enable wheel pulse as wakeup source
 	esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ALL_LOW);
 
-	// ZzzZZZzzzZZ
-	esp_deep_sleep_start();
+	esp_deep_sleep_start();  // ZzzZZZzzzZZ
 }
 
 // if a button has been released, sets its bit in return value

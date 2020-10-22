@@ -23,6 +23,7 @@
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
+extern lv_font_t concert_one_50_full;
 
 extern const char ca_cert_start[] asm("_binary_ota_ca_cert_pem_start");
 
@@ -64,6 +65,10 @@ static void big_num(bool isInit, int type, unsigned btns)
 
 		// Setup the bounding box of dynamic labels
 		lv_init_label(&big_lbl, 64, 18, 0, &concert_one_50, "22222", LV_CENTER);
+
+		// TODO concert_one_50_full makes the ESP panic for some reason :(
+		log_i("h: %d", concert_one_50_full.line_height);
+		log_i("val[1]: %x", ((lv_font_fmt_txt_dsc_t*)concert_one_50_full.dsc)->glyph_bitmap[1]);
 	}
 
 	// clears and prints dynamic content into BB
@@ -96,7 +101,8 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 			startWebServer();
 			lv_init_label(&ota_lbl, 63, 16, 0, &noto_sans_12, "Webserver started", LV_CENTER);
 		}
-		lv_init_label(&ota_lbl, 63, 32, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
+		lv_init_label(&ota_lbl, 63, 32, 0, &noto_sans_12, GIT, LV_CENTER);
+		lv_init_label(&ota_lbl, 63, 48, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
 		doUpdate=false;
 		ret = -1;
 	}
