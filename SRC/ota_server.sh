@@ -4,4 +4,4 @@
 # trigger the update on the OTA screen (5) on velogen
 set -e
 pio run
-(cd .pio/build/velogen/; openssl s_server -WWW -key ../../../certs/ota_void_ca_key.pem -cert ../../../certs/ota_void_ca_cert.pem -port 8000)
+(cd .pio/build/velogen/; openssl s_server -WWW -key ../../../certs/ota_ca_key.pem -cert ../../../certs/ota_ca_cert.pem -port 8000)

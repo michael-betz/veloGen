@@ -19,13 +19,12 @@
 #include "static_ws.h"
 #include "velo_gui.h"
 
-
 #define N_SCREENS 5
 
 extern lv_font_t noto_sans_12;
 extern lv_font_t concert_one_50;
 
-extern const char ca_cert_start[] asm("_binary_ota_void_ca_cert_pem_start");
+extern const char ca_cert_start[] asm("_binary_ota_ca_cert_pem_start");
 
 static const char *T = "VELO_GUI";
 
