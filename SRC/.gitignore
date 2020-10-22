@@ -1,2 +1,3 @@
 .pio
 *.pem
+data/settings.json
