@@ -1,5 +1,8 @@
 // takes care of taking measurements and sending them off on mqtt if connected
 // if not, cache measurements in SPIFFS file and send out once connected
+// implement a circular buffer in the file.
+// There is a read pointer, pointing to the first valid block and the number of blocks
+// both are stored in `velo_ptr.dat`
 
 #include <errno.h>
 #include <stdio.h>
@@ -13,12 +16,6 @@
 
 static const char *T = "MQTT_CACHE";
 
-// path for the cache-file
-#define FILE_BUF "/spiffs/velo_buf.dat"
-
-// max. number of measurements to dump in one mqtt message
-#define BULK_CHUNKS 85
-
 // format of one measurement
 typedef struct {
 	unsigned ts;
@@ -26,15 +23,28 @@ typedef struct {
 	int amps;
 	unsigned cnt;
 } t_datum;
+#define BLOCK_SIZE sizeof(t_datum)
 
+// paths for the cache and pointer file
+#define FILE_BUF "/spiffs/velo_buf.dat"
+#define FILE_PTR "/spiffs/velo_ptr.dat"
+
+// cache is a ring buffer, 1 MB is enough for 18 h at 1 Hz
+#define MAX_CACHE_SIZE (1024 * 1024 / BLOCK_SIZE)  // [blocks]
+
+// max. number of blocks to dump in one mqtt message
+#define BULK_CHUNKS 85
+
+// cache file (stays open for r+)
 FILE *f_buf = NULL;
 
+// initialized from .json
 const char* mqtt_topic = NULL;
 
-// first 4 bytes in the cache file gives the number of payload bytes
-static int f_size = 0;
+// first entry (read pointer) and number of entries in buffer file [blocks]
+static unsigned block_first=0, block_N=0;
 
-// the current mqtt message to wait for being transmitted
+// msg_id of the currently transmitted / last acknowledged mqtt message
 static int msg_needs_ack=-1, last_ack=-1;
 
 static void cb_mqtt_pub(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
@@ -49,79 +59,78 @@ static void cb_mqtt_pub(void *handler_args, esp_event_base_t base, int32_t event
 static void cb_mqtt_con(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) { isMqttConnect = true; }
 static void cb_mqtt_discon(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {	isMqttConnect = false; }
 
+// write block_first and block_N to FILE_PTR
+static int commit_ptrs()
+{
+	FILE *f_ptr = fopen(FILE_PTR, "w");
+	if (!f_ptr) {
+		log_e("%s: %s, cannot write, stopping caching", FILE_PTR, strerror(errno));
+		fclose(f_buf);
+		f_buf = NULL;
+		return -1;
+	}
+	fwrite(&block_first, sizeof(block_first), 1, f_ptr);
+	fwrite(&block_N, sizeof(block_N), 1, f_ptr);
+	fclose(f_ptr);
+	log_d("commit_ptrs(): block_first: %d, block_N: %d", block_first, block_N);
+	return 0;
+}
+
 void cache_init()
 {
 	mqtt_topic = jGetS(getSettings(), "mqtt_topic", "velogen/raw");
 	log_i("Publishing to %s", mqtt_topic);
 
+	// register for MQTT events
+	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, mqtt_c));
+	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, mqtt_c));
+	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
+
+	// read pointer file
+	FILE *f_ptr = fopen(FILE_PTR, "r");
+	if (f_ptr) {
+		fread(&block_first, sizeof(block_first), 1, f_ptr);
+		fread(&block_N, sizeof(block_N), 1, f_ptr);
+		fclose(f_ptr);
+	} else {
+		log_w("%s: %s, creating a fresh one ...", FILE_PTR, strerror(errno));
+		block_first = 0;
+		block_N = 0;
+		if (commit_ptrs() < 0) {
+			log_e("Failed, giving up :( %s", strerror(errno));
+			return;
+		}
+	}
+
+	if (block_first > (MAX_CACHE_SIZE - 1) || block_N > MAX_CACHE_SIZE) {
+		log_w("illegal cache: block_first = %d, block_N = %d, starting from scratch", block_first, block_N);
+		block_first = 0;
+		block_N = 0;
+	} else {
+		log_i("cache initialized: block_first = %d, block_N = %d", block_first, block_N);
+	}
+
+	// open buffer file
 	f_buf = fopen(FILE_BUF, "r+");
 	if (!f_buf) {
 		log_w("%s: %s, creating a fresh one ...", FILE_BUF, strerror(errno));
 		f_buf = fopen(FILE_BUF, "w");
-
-		// first 4 byte are file-size (because f&^*&ing ESP-IDF can not truncate files on SPIFFS!!!)
-		f_size = 0;
-		fwrite(&f_size, 4, 1, f_buf);
 		fclose(f_buf);
 		f_buf = fopen(FILE_BUF, "r+");
+		block_first = 0;
+		block_N = 0;
 	}
 	if (!f_buf) {
 		log_e("Didn't work, giving up :( %s", strerror(errno));
 		return;
 	}
-
-	// read f_size
-	fseek(f_buf, 0, SEEK_SET);
-	fread(&f_size, 4, 1, f_buf);
-
-	// sanity check f_size
-	fseek(f_buf, 0, SEEK_END);
-	log_i("%s size: %ld, f_size: %d", FILE_BUF, ftell(f_buf), f_size);
-	if (f_size < 0 || f_size > ftell(f_buf) - 4) {
-		log_w("reseting f_size, starting fresh");
-		f_size = 0;
-		fseek(f_buf, 0, SEEK_SET);
-		fwrite(&f_size, 4, 1, f_buf);
-	}
-
-	if (f_size % sizeof(t_datum) != 0) {
-		log_w("file corrupt? rounding down pos_end to match %d raster", sizeof(t_datum));
-		f_size /= sizeof(t_datum);
-		f_size *= sizeof(t_datum);
-		fseek(f_buf, 0, SEEK_SET);
-		fwrite(&f_size, 4, 1, f_buf);
-	}
-
-	// register for MQTT events
-	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, mqtt_c));
-	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, mqtt_c));
-	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
 }
 
-// cannot reduce file-size on SPIFFS (thanks IDF!) so keep number of payload bytes
-// as int in the first 4 bytes of the file, which is changed by this function
-static void trunc_file(int len)
-{
-	if (!f_buf || len < 0)
-		return;
-	log_i("Truncating f_size: %d", len);
-	fseek(f_buf, 0, SEEK_SET);
-	fwrite(&len, 4, 1, f_buf);
-	f_size = len;
-	// fflush(f_buf);  // doesn't seem to actually flush the data :(
-	fclose(f_buf);  // works but expensive. Too bad.
-	f_buf = NULL;
-	f_buf = fopen(FILE_BUF, "r+");
-	if (!f_buf) {
-		log_e("Couldn't re-open file after truncating :( %s", strerror(errno));
-		return;
-	}
-	log_i("Trunc done");
-}
-
-// call this to take a measurement and deal with it
+// call this to take a measurement and deal with them
 void cache_handle()
 {
+	static unsigned seq = 0;
+
 	static enum {
 		ST_OFFLINE,  // write to cache, dont publish
 		ST_ONLINE,  // cache is empty
@@ -131,7 +140,7 @@ void cache_handle()
 
 	bool isCon = isMqttConnect;
 	static char *buf = NULL;
-	static int initial_cache_size=0, cache_size=0;  // [blocks]
+	static int initial_block_N=0;  // [blocks]
 	static int nTX = 0;  // [blocks]
 
 	// collect a new data point
@@ -142,43 +151,56 @@ void cache_handle()
 	datum.amps = g_mAmps;
 	datum.cnt = g_wheelCnt;
 
+	// datum.ts = seq;
+	// datum.volts = 0;
+	// datum.amps = 0;
+	// datum.cnt = 0;
+
 	switch (tx_state) {
 		case ST_ONLINE_CA:
-
-			// freshly offline, truncate payload as it may have been partially transmitted
+			// freshly offline, but there's still data in the cache
 			if (!isCon) {
-				trunc_file(cache_size * sizeof(datum));
+				commit_ptrs();
 				tx_state = ST_OFFLINE;
 				break;
 			}
 
 			// no more data in the cache to transmit
-			if (cache_size <= 0) {
-				trunc_file(0);
+			if (block_N <= 0) {
+				commit_ptrs();
 				tx_state = ST_ONLINE;
 				break;
 			}
 
-			nTX = cache_size;  // number of [blocks] to transmit in this cycle
+			// nTX = number of [blocks] to transmit in this cycle
+			nTX = block_N;
+			// avoid buffer roll-over during transmission
+			if ((block_first + nTX) > MAX_CACHE_SIZE)
+				nTX = MAX_CACHE_SIZE - block_first;
 			if (nTX > BULK_CHUNKS)
 				nTX = BULK_CHUNKS;
-			log_i("cache_size: %d,  nTX: %d", cache_size, nTX);
-			buf = malloc(nTX * sizeof(datum));
+
+			log_i("ST_ONLINE_CA: block_first: %d, block_N: %d,  nTX: %d", block_first, block_N, nTX);
+			buf = malloc(nTX * BLOCK_SIZE);
 			if (!buf) {
 				log_e("Could not allocate buffer :(");
 				break;
 			}
-			fseek(f_buf, (cache_size - nTX) * sizeof(datum) + 4, SEEK_SET);
-			fread(buf, nTX * sizeof(datum), 1, f_buf);
-			msg_needs_ack = esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * sizeof(datum), 1, 0);
+
+			fseek(f_buf, block_first * BLOCK_SIZE, SEEK_SET);
+			fread(buf, nTX * BLOCK_SIZE, 1, f_buf);
+
+			msg_needs_ack = esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * BLOCK_SIZE, 1, 0);
 			free(buf);
+			buf = NULL;
+
 			tx_state = ST_WAIT_FOR_PUB;
 			// short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
 
 		case ST_WAIT_FOR_PUB:
 			// went off-line while waiting for MQTT ACK
 			if (!isCon) {
-				// clear pending transmissions?
+				commit_ptrs();
 				tx_state = ST_OFFLINE;
 				break;
 			}
@@ -187,15 +209,20 @@ void cache_handle()
 			if (msg_needs_ack == 0 || (last_ack > 0 && last_ack == msg_needs_ack)) {
 				last_ack = -1;
 				msg_needs_ack = -1;
-				cache_size -= nTX;
-				setStatus("ACK %d / %d", initial_cache_size - cache_size, initial_cache_size);
+
+				// move cache pointers
+				block_first = (block_first + nTX) % MAX_CACHE_SIZE;
+				block_N -= nTX;
+
+				setStatus("ACK %d / %d", initial_block_N - block_N, initial_block_N);
+				log_i("ACK: block_first: %d, block_N: %d", block_first, block_N);
 				tx_state = ST_ONLINE_CA;
 			}
 			break;
 
 		case ST_ONLINE:
+			// freshly offline, cache is empty
 			if (!isCon) {
-				// freshly offline, cache is empty
 				tx_state = ST_OFFLINE;
 			}
 			break;
@@ -204,8 +231,7 @@ void cache_handle()
 			// freshly online, start emptying the cache
 			if (isCon) {
 				// How many blocks are in the cache?
-				cache_size = f_size / sizeof(datum);
-				initial_cache_size = cache_size;
+				initial_block_N = block_N;
 				tx_state = ST_ONLINE_CA;
 			}
 			break;
@@ -216,20 +242,28 @@ void cache_handle()
 		// if mqtt is connected, publish immediately with QOS1
 		esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)&datum, sizeof(datum), 1, 0);
 	} else {
-		// append to cache file. 1.4 MB spiffs is enough for 26 h at 1 Hz
+		// append to cache ring buffer. 1 MB is enough for 18 h at 1 Hz
 		if (!f_buf)
 			return;
-		fseek(f_buf, f_size + 4, SEEK_SET);
-		if (fwrite(&datum, sizeof(datum), 1, f_buf) != 1) {
+
+		unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
+		fseek(f_buf, wPtr * BLOCK_SIZE, SEEK_SET);
+
+		if (fwrite(&datum, BLOCK_SIZE, 1, f_buf) != 1) {
 			log_e("%s write error! Stopping caching.", FILE_BUF);
 			fclose(f_buf);
 			f_buf = NULL;
 			return;
 		}
-		f_size += sizeof(datum);
-		fseek(f_buf, 0, SEEK_SET);
-		fwrite(&f_size, 4, 1, f_buf);
 		fflush(f_buf);
-		log_d("f_size: %d", f_size);
+
+		if (block_N < MAX_CACHE_SIZE) {
+			block_N++;
+		} else {
+			block_first = (block_first + 1) % MAX_CACHE_SIZE;
+		}
+		commit_ptrs();
 	}
+
+	seq++;
 }
