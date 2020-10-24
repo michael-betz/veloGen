@@ -262,8 +262,8 @@ static void vLine(unsigned x, unsigned y, unsigned h, bool isSet)
 
 void fillRect(int x0, int x1, int y0, int y1, bool isSet)
 {
-	limit(&x0, &x1, DISPLAY_WIDTH);
-	limit(&y0, &y1, DISPLAY_HEIGHT);
+	limit(&x0, &x1, DISPLAY_WIDTH - 1);
+	limit(&y0, &y1, DISPLAY_HEIGHT - 1);
 	unsigned h = y1 - y0 + 1;
 	for (unsigned x=x0; x<=x1; x++)
 		vLine(x, y0, h, isSet);
@@ -271,8 +271,8 @@ void fillRect(int x0, int x1, int y0, int y1, bool isSet)
 
 void rect(int x0, int x1, int y0, int y1, bool isSet)
 {
-	limit(&x0, &x1, DISPLAY_WIDTH);
-	limit(&y0, &y1, DISPLAY_HEIGHT);
+	limit(&x0, &x1, DISPLAY_WIDTH - 1);
+	limit(&y0, &y1, DISPLAY_HEIGHT - 1);
 	unsigned w = x1 - x0;
 	unsigned h = y1 - y0;
 	hLine(x0, y0, w, isSet);

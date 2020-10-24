@@ -20,7 +20,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -330,5 +329,15 @@ void reset_bb();
  * Symbols from "normal" font
  *-----------------------------*/
 #define LV_SYMBOL_BULLET          "\xE2\x80\xA2"   /*20042, 0x2022*/
+
+extern lv_font_t noto_sans_12;
+extern lv_font_t concert_one;
+extern lv_font_t fa;
+
+// symbols included in fa
+#define SYM_TACHO           "\xef\x8f\xbd"
+#define SYM_BOLT            "\xef\x83\xa7"
+#define SYM_PLUG            "\xef\x87\xa6"
+#define SYM_CAR_BATTERY     "\xef\x97\x9f"
 
 #endif

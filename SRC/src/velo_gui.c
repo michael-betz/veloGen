@@ -21,10 +21,6 @@
 
 #define N_SCREENS 5
 
-extern lv_font_t noto_sans_12;
-extern lv_font_t concert_one_50;
-extern lv_font_t concert_one_50_full;
-
 extern const char ca_cert_start[] asm("_binary_ota_ca_cert_pem_start");
 
 static const char *T = "VELO_GUI";
@@ -46,7 +42,8 @@ static void big_num(bool isInit, int type, unsigned btns)
 {
 	static t_label big_lbl;
 	static bool isDyn = false;
-	static const char * const units[] = {"km/h", "mA", "mV", "mW"};
+	static const char * const units[] = {"km/h", "mA", "V", "W"};
+	static const char * const symbols[] = {SYM_TACHO, SYM_PLUG, SYM_CAR_BATTERY, SYM_BOLT};
 
 	// toggle dynamo
 	if (btns & (1 << 1)) {
@@ -61,20 +58,18 @@ static void big_num(bool isInit, int type, unsigned btns)
 
 	if (isInit) {
 		// Static content which will not be refreshed
-		lv_init_label(&big_lbl, 127, 0, 0, &noto_sans_12, units[type], LV_RIGHT);
+		lv_init_label(&big_lbl, 127, 0, &noto_sans_12, units[type], LV_RIGHT);
+		lv_init_label(&big_lbl, 0, 23, &fa, symbols[type], LV_LEFT);
 
 		// Setup the bounding box of dynamic labels
-		lv_init_label(&big_lbl, 64, 18, 0, &concert_one_50, "22222", LV_CENTER);
-
-		// TODO concert_one_50_full makes the ESP panic for some reason :(
-		// log_i("h: %d", concert_one_50_full.line_height);
-		// log_i("val[1]: %x", ((lv_font_fmt_txt_dsc_t*)concert_one_50_full.dsc)->glyph_bitmap[1]);
+		lv_init_label(&big_lbl, 127, 19, &concert_one, "222", LV_RIGHT);
+		big_lbl.x0 = 40;
 	}
 
 	// clears and prints dynamic content into BB
 	switch (type) {
 		case 0:
-			lv_update_label(&big_lbl, "%.1f", g_speed);
+			lv_update_label(&big_lbl, "%d", (int)g_speed);
 			break;
 
 		case 1:
@@ -82,11 +77,11 @@ static void big_num(bool isInit, int type, unsigned btns)
 			break;
 
 		case 2:
-			lv_update_label(&big_lbl, "%d", g_mVolts);
+			lv_update_label(&big_lbl, "%.2f", (float)g_mVolts / 1000);
 			break;
 
 		case 3:
-			lv_update_label(&big_lbl, "%d", g_mVolts * g_mAmps / 1000);
+			lv_update_label(&big_lbl, "%.1f", (float)g_mVolts * (float)g_mAmps / 1000.0 / 1000.0);
 			break;
 	}
 }
@@ -99,10 +94,10 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 	if (isInit) {
 		if (isConnect) {
 			startWebServer();
-			lv_init_label(&ota_lbl, 63, 16, 0, &noto_sans_12, "Webserver started", LV_CENTER);
+			lv_init_label(&ota_lbl, 63, 16, &noto_sans_12, "Webserver started", LV_CENTER);
 		}
-		lv_init_label(&ota_lbl, 63, 32, 0, &noto_sans_12, GIT, LV_CENTER);
-		lv_init_label(&ota_lbl, 63, 48, 0, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
+		lv_init_label(&ota_lbl, 63, 32, &noto_sans_12, GIT, LV_CENTER);
+		lv_init_label(&ota_lbl, 63, 48, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
 		doUpdate=false;
 		ret = -1;
 	}

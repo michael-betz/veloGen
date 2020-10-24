@@ -180,6 +180,8 @@ unsigned button_read()
 	return release;
 }
 
+int meas_ticks = 1;
+
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_OUTPUT);
@@ -201,6 +203,7 @@ void velogen_init()
 
 	// init oled
 	ssd_init();
+	ssd_invert(esp_random() & 1);
 	fill(0);
 	ssd_send();
 
@@ -213,10 +216,13 @@ void velogen_init()
 	touch_init();
 
 	// Set the timezone
-	setenv("TZ", jGetS(getSettings(), "timezone", "PST8PDT"), 1);
+	cJSON *s = getSettings();
+	setenv("TZ", jGetS(s, "timezone", "PST8PDT"), 1);
 	tzset();
 
-	sleepTimeout = jGetI(getSettings(), "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
+	sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
+	meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
+
 	initVeloWifi();
 	cache_init();  // open / create cache file on SPIFFS
 	tryConnect();
@@ -233,13 +239,18 @@ void velogen_loop()
 
 	g_mVolts = inaV();
 	g_mAmps = inaI();
+
+	// crude battery protection
+	if (g_mVolts > 8400)
+		gpio_set_level(P_DYN, 0);
+
 	if (counter_read()) {
 		ts_sleep = curTs;
 		// ts_con = curTs;
 	}
 
-	// 1 Hz
-	if ((frm % 20) == 0)
+	// 20 Hz max.
+	if (meas_ticks > 0 && (frm % meas_ticks) == 0)
 		cache_handle();
 
 	if (draw_screen())
