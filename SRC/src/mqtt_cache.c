@@ -33,7 +33,7 @@ typedef struct {
 #define MAX_CACHE_SIZE (1024 * 1024 / BLOCK_SIZE)  // [blocks]
 
 // max. number of blocks to dump in one mqtt message
-#define BULK_CHUNKS 85
+#define BULK_CHUNKS 128
 
 // cache file (stays open for r+)
 FILE *f_buf = NULL;
@@ -72,7 +72,7 @@ static int commit_ptrs()
 	fwrite(&block_first, sizeof(block_first), 1, f_ptr);
 	fwrite(&block_N, sizeof(block_N), 1, f_ptr);
 	fclose(f_ptr);
-	log_d("commit_ptrs(): block_first: %d, block_N: %d", block_first, block_N);
+	log_i("commit_ptrs(): block_first: %d, block_N: %d", block_first, block_N);
 	return 0;
 }
 
@@ -124,6 +124,20 @@ void cache_init()
 		log_e("Didn't work, giving up :( %s", strerror(errno));
 		return;
 	}
+
+	// avoid seeking beyond end of file, might need to write some dummy
+	// bytes to get the file-size to match up with write pointer
+	// https://github.com/pellepl/spiffs/wiki/Using-spiffs#seeking-in-a-file
+	fseek(f_buf, 0, SEEK_END);
+	unsigned fSize = ftell(f_buf);
+	log_i("fSize = %d", fSize);
+	unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
+	int lostBytes = wPtr * BLOCK_SIZE - fSize;
+	if (lostBytes > 0) {
+		log_w("appending %d dummy bytes", lostBytes);
+		while (lostBytes-- > 0)
+			fputc('\0', f_buf);
+	}
 }
 
 // call this to take a measurement and deal with them
@@ -152,89 +166,97 @@ void cache_handle()
 	datum.cnt = g_wheelCnt;
 
 	// datum.ts = seq;
-	// datum.volts = 0;
-	// datum.amps = 0;
-	// datum.cnt = 0;
+	// datum.volts = 1;
+	// datum.amps = 2;
+	// datum.cnt = 3;
 
-	switch (tx_state) {
-		case ST_ONLINE_CA:
-			// freshly offline, but there's still data in the cache
-			if (!isCon) {
-				commit_ptrs();
-				tx_state = ST_OFFLINE;
+	if (f_buf){
+		switch (tx_state) {
+			case ST_ONLINE_CA:
+				// freshly offline, but there's still data in the cache
+				if (!isCon) {
+					commit_ptrs();
+					tx_state = ST_OFFLINE;
+					break;
+				}
+
+				// no more data in the cache to transmit
+				if (block_N <= 0) {
+					block_N = 0;
+					block_first = 0;
+					commit_ptrs();
+					tx_state = ST_ONLINE;
+					break;
+				}
+
+				// nTX = number of [blocks] to transmit in this cycle
+				nTX = block_N;
+				// avoid buffer roll-over during transmission
+				if ((block_first + nTX) > MAX_CACHE_SIZE)
+					nTX = MAX_CACHE_SIZE - block_first;
+				if (nTX > BULK_CHUNKS)
+					nTX = BULK_CHUNKS;
+
+				log_i("ST_ONLINE_CA: block_first: %d, block_N: %d,  nTX: %d", block_first, block_N, nTX);
+				buf = malloc(nTX * BLOCK_SIZE);
+				if (!buf) {
+					log_e("Could not allocate buffer :(");
+					break;
+				}
+
+				if (fseek(f_buf, block_first * BLOCK_SIZE, SEEK_SET) < 0) {
+					log_e("READ seek failed, to %d, %s", block_first * BLOCK_SIZE, strerror(errno));
+				}
+				if (fread(buf, nTX * BLOCK_SIZE, 1, f_buf) != 1) {
+					log_e("READ fread failed :(, read %d", nTX * BLOCK_SIZE);
+				}
+
+				msg_needs_ack = esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * BLOCK_SIZE, 1, 0);
+				free(buf);
+				buf = NULL;
+
+				tx_state = ST_WAIT_FOR_PUB;
+				// short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
+
+			case ST_WAIT_FOR_PUB:
+				// went off-line while waiting for MQTT ACK
+				if (!isCon) {
+					commit_ptrs();
+					tx_state = ST_OFFLINE;
+					break;
+				}
+
+				// broker sent ACK for the currently active block
+				if (msg_needs_ack == 0 || (last_ack > 0 && last_ack == msg_needs_ack)) {
+					last_ack = -1;
+					msg_needs_ack = -1;
+
+					// move cache pointers
+					block_first = (block_first + nTX) % MAX_CACHE_SIZE;
+					block_N -= nTX;
+
+					setStatus("ACK %d / %d", initial_block_N - block_N, initial_block_N);
+					log_i("ACK: block_first: %d, block_N: %d", block_first, block_N);
+					tx_state = ST_ONLINE_CA;
+				}
 				break;
-			}
 
-			// no more data in the cache to transmit
-			if (block_N <= 0) {
-				commit_ptrs();
-				tx_state = ST_ONLINE;
+			case ST_ONLINE:
+				// freshly offline, cache is empty
+				if (!isCon) {
+					tx_state = ST_OFFLINE;
+				}
 				break;
-			}
 
-			// nTX = number of [blocks] to transmit in this cycle
-			nTX = block_N;
-			// avoid buffer roll-over during transmission
-			if ((block_first + nTX) > MAX_CACHE_SIZE)
-				nTX = MAX_CACHE_SIZE - block_first;
-			if (nTX > BULK_CHUNKS)
-				nTX = BULK_CHUNKS;
-
-			log_i("ST_ONLINE_CA: block_first: %d, block_N: %d,  nTX: %d", block_first, block_N, nTX);
-			buf = malloc(nTX * BLOCK_SIZE);
-			if (!buf) {
-				log_e("Could not allocate buffer :(");
+			case ST_OFFLINE:
+				// freshly online, start emptying the cache
+				if (isCon) {
+					// How many blocks are in the cache?
+					initial_block_N = block_N;
+					tx_state = ST_ONLINE_CA;
+				}
 				break;
-			}
-
-			fseek(f_buf, block_first * BLOCK_SIZE, SEEK_SET);
-			fread(buf, nTX * BLOCK_SIZE, 1, f_buf);
-
-			msg_needs_ack = esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * BLOCK_SIZE, 1, 0);
-			free(buf);
-			buf = NULL;
-
-			tx_state = ST_WAIT_FOR_PUB;
-			// short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
-
-		case ST_WAIT_FOR_PUB:
-			// went off-line while waiting for MQTT ACK
-			if (!isCon) {
-				commit_ptrs();
-				tx_state = ST_OFFLINE;
-				break;
-			}
-
-			// broker sent ACK for the currently active block
-			if (msg_needs_ack == 0 || (last_ack > 0 && last_ack == msg_needs_ack)) {
-				last_ack = -1;
-				msg_needs_ack = -1;
-
-				// move cache pointers
-				block_first = (block_first + nTX) % MAX_CACHE_SIZE;
-				block_N -= nTX;
-
-				setStatus("ACK %d / %d", initial_block_N - block_N, initial_block_N);
-				log_i("ACK: block_first: %d, block_N: %d", block_first, block_N);
-				tx_state = ST_ONLINE_CA;
-			}
-			break;
-
-		case ST_ONLINE:
-			// freshly offline, cache is empty
-			if (!isCon) {
-				tx_state = ST_OFFLINE;
-			}
-			break;
-
-		case ST_OFFLINE:
-			// freshly online, start emptying the cache
-			if (isCon) {
-				// How many blocks are in the cache?
-				initial_block_N = block_N;
-				tx_state = ST_ONLINE_CA;
-			}
-			break;
+		}
 	}
 
 	// take care of the most recent data point (publish or cache)
@@ -247,10 +269,15 @@ void cache_handle()
 			return;
 
 		unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
-		fseek(f_buf, wPtr * BLOCK_SIZE, SEEK_SET);
-
+		log_i("seek: %d, write %d", wPtr * BLOCK_SIZE, BLOCK_SIZE);
+		if (fseek(f_buf, wPtr * BLOCK_SIZE, SEEK_SET) < 0) {
+			log_e("seek failed, to %d, %s. Stopping caching.", wPtr * BLOCK_SIZE, strerror(errno));
+			fclose(f_buf);
+			f_buf = NULL;
+			return;
+		}
 		if (fwrite(&datum, BLOCK_SIZE, 1, f_buf) != 1) {
-			log_e("%s write error! Stopping caching.", FILE_BUF);
+			log_e("%s write error! write %d. Stopping caching.", FILE_BUF, BLOCK_SIZE);
 			fclose(f_buf);
 			f_buf = NULL;
 			return;

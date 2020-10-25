@@ -14,9 +14,6 @@ static const char *T = "STATIC_WS";
 static httpd_handle_t server = NULL;
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + CONFIG_SPIFFS_OBJ_NAME_LEN)
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
 #define BASE_PATH "/spiffs"
 #define SCRATCH_BUFSIZE  8192
 

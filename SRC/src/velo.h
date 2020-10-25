@@ -10,6 +10,9 @@
 #define log_d(format, ...) ESP_LOGD(T, format, ##__VA_ARGS__)
 #define log_v(format, ...) ESP_LOGV(T, format, ##__VA_ARGS__)
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 // GPIO Pin definitions
 #define P_DYN GPIO_NUM_16  // Dynamo on / off
 #define P_AC GPIO_NUM_15  // N zero crossings per rotation
