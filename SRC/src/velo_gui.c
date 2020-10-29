@@ -41,7 +41,7 @@ static t_label stat_lbl = {
 static void big_num(bool isInit, int type, unsigned btns)
 {
 	static t_label big_lbl;
-	static bool isDyn = false;
+	static bool isDyn = true;
 	static const char * const units[] = {"km/h", "mA", "V", "W"};
 	static const char * const symbols[] = {SYM_TACHO, SYM_PLUG, SYM_CAR_BATTERY, SYM_BOLT};
 
