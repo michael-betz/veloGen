@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 ''' plot a velogen .csv file '''
 from numpy import genfromtxt
 from matplotlib.pyplot import close, subplots, show

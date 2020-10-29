@@ -1,12 +1,10 @@
 // next steps
-// * resurrect ota
-// * resurrect html .json editor
-// * velo_server
 // * shutdown state machine (look for wifi, try upload)
 // * per trip screens
 //   * energy / charge / distance / avg speed
 // 	 * displayed at end of trip (= when stopped moving) ?
 //   * when to reset?
+// * OTA: load firmware from github release
 
 #include <stdio.h>
 #include <time.h>
@@ -24,6 +22,9 @@ static const char *T = "MAIN";
 
 void app_main()
 {
+	esp_log_level_set("*", ESP_LOG_INFO);
+	esp_log_level_set("MQTT_CACHE", ESP_LOG_DEBUG);
+
 	// report status
 	ESP_LOGI(T,
 		"reset reason: %d, heap: %d, min_heap: %d",

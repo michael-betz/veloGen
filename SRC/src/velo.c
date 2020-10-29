@@ -180,13 +180,11 @@ unsigned button_read()
 	return release;
 }
 
-int meas_ticks = 1;
-
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_OUTPUT);
 	gpio_set_direction(P_AC, GPIO_MODE_INPUT);
-	gpio_set_level(P_DYN, 0);
+	gpio_set_level(P_DYN, 1);
 
 	counter_init();
 
@@ -221,7 +219,6 @@ void velogen_init()
 	tzset();
 
 	sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
-	meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
 
 	initVeloWifi();
 	cache_init();  // open / create cache file on SPIFFS
@@ -250,8 +247,7 @@ void velogen_loop()
 	}
 
 	// 20 Hz max.
-	if (meas_ticks > 0 && (frm % meas_ticks) == 0)
-		cache_handle();
+	cache_handle();
 
 	if (draw_screen())
 		ts_sleep = curTs;
