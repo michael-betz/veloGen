@@ -6,6 +6,7 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "json_settings.h"
+#include "tcpip_adapter.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
@@ -94,7 +95,11 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 	if (isInit) {
 		if (isConnect) {
 			startWebServer();
-			lv_init_label(&ota_lbl, 63, 16, &noto_sans_12, "Webserver started", LV_CENTER);
+			lv_init_label(&ota_lbl, 63, 16, &noto_sans_12, "http://000.000.000.000", LV_CENTER);
+			// print IP address.
+			tcpip_adapter_ip_info_t ipInfo;
+			tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+			lv_update_label(&ota_lbl, "http://" IPSTR, IP2STR(&ipInfo.ip));
 		}
 		lv_init_label(&ota_lbl, 63, 32, &noto_sans_12, GIT, LV_CENTER);
 		lv_init_label(&ota_lbl, 63, 48, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);
