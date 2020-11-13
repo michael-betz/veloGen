@@ -166,16 +166,19 @@ unsigned button_read()
 	static unsigned state_ = 0;
 	unsigned state=0, release=0;
 
+	// get capacitance values and subtract offset to normalize them
 	for (int i=0; i<N_PINS; i++) {
 		uint16_t tmp;
-		touch_pad_read(tPins[flip_buttons ? N_PINS - 1 - i : i], &tmp);
+		touch_pad_read(tPins[i], &tmp);
 		tpv[i] = tinit[i] - tmp;
-		if (tpv[i] > touch_threshold) {
-			state |= 1 << i;
-		} else if ((state_ >> i) & 1) {
-			release |= 1 << i;
-		}
 	}
+
+	// figure out which buttons have been released, flip buttons if needed
+	for (int i=0; i<N_PINS; i++)
+		if (tpv[flip_buttons ? N_PINS - 1 - i : i] > touch_threshold)
+			state |= 1 << i;
+		else if ((state_ >> i) & 1)
+			release |= 1 << i;
 
 	// if (state)
 	//     log_v("TP: %3d %3d %3d %3d", tpv[0], tpv[1], tpv[2], tpv[3]);
