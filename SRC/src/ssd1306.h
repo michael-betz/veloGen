@@ -9,7 +9,9 @@ void ssd_init();
 void ssd_poweroff();
 void ssd_poweron();
 void ssd_contrast(uint8_t val);
-void ssd_invert(bool val);
+void ssd_invert(bool val);  // swap on and off
+void ssd_flip_x(bool val);  // swap left and right
+void ssd_flip_y(bool val);  // swap up and down
 void ssd_send();
 
 // SET / GET a single pixel in the framebuffer

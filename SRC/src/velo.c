@@ -200,9 +200,16 @@ void velogen_init()
 	i2c_param_config(I2C_NUM_0, &conf);
 	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 
+	cJSON *s = getSettings();
+
 	// init oled
 	ssd_init();
-	ssd_invert(esp_random() & 1);
+	if (jGetB(s, "oled_rotate_180", false)) {
+		ssd_flip_x(true);
+		ssd_flip_y(true);
+	}
+	if (jGetB(s, "oled_rand_invert", false))
+		ssd_invert(esp_random() & 1);
 	fill(0);
 	ssd_send();
 
@@ -215,7 +222,6 @@ void velogen_init()
 	touch_init();
 
 	// Set the timezone
-	cJSON *s = getSettings();
 	setenv("TZ", jGetS(s, "timezone", "PST8PDT"), 1);
 	tzset();
 

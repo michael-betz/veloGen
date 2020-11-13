@@ -123,6 +123,22 @@ void ssd_invert(bool val)
 	cmd(SET_NORM_INV | (val & 1));
 }
 
+void ssd_flip_x(bool val)
+{
+	if (val)
+		cmd(SET_SEG_REMAP);
+	else
+		cmd(SET_SEG_REMAP | 1);
+}
+
+void ssd_flip_y(bool val)
+{
+	if (val)
+		cmd(SET_COM_OUT_DIR);
+	else
+		cmd(SET_COM_OUT_DIR | 0x08);
+}
+
 void ssd_send()
 {
 	i2c_cmd_handle_t cl = i2c_cmd_link_create();
