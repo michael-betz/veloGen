@@ -6,7 +6,7 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "json_settings.h"
-#include "tcpip_adapter.h"
+#include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"

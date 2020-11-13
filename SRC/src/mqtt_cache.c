@@ -325,9 +325,9 @@ void cache_handle()
 
 		unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
 
-		bool sk = false;
+		// bool sk = false;
 		if (ftell(f_buf) != wPtr * BLOCK_SIZE) {
-			sk = true;
+			// sk = true;
 			if (fseek(f_buf, wPtr * BLOCK_SIZE, SEEK_SET) < 0) {
 				log_e("seek failed, to %d, %s. Stopping caching.", wPtr * BLOCK_SIZE, strerror(errno));
 				fclose(f_buf);
