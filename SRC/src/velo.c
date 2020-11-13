@@ -8,6 +8,7 @@
 #include "driver/pcnt.h"
 #include "driver/touch_pad.h"
 #include "driver/i2c.h"
+#include "driver/rtc_io.h"
 #include "mqtt_client.h"
 #include "time.h"
 #include "ssd1306.h"
@@ -18,7 +19,6 @@
 #include "velo_gui.h"
 #include "static_ws.h"
 #include "velo.h"
-
 
 #define N_PINS 4
 
@@ -72,6 +72,7 @@ static void counter_init()
 	};
 	// Initialize PCNT unit
 	pcnt_unit_config(&pcnt_config);
+	rtc_gpio_deinit(P_AC);
 	gpio_set_pull_mode(P_AC, GPIO_FLOATING);
 	// Configure and enable the input filter
 	pcnt_set_filter_value(PCNT_UNIT_0, 1023);
@@ -150,7 +151,7 @@ void velogen_sleep(bool isReboot)
 	esp_sleep_enable_touchpad_wakeup();
 
 	// enable wheel pulse as wakeup source
-	esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ALL_LOW);
+	esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
 
 	esp_deep_sleep_start();  // ZzzZZZzzzZZ
 }

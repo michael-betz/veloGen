@@ -1161,6 +1161,10 @@ Text Notes 6850 2900 0    50   ~ 0
 should be 0603, 10uF
 Text Notes 6950 1800 0    50   ~ 0
 should be 0603, 10uF
-Text Notes 4500 1500 0    50   ~ 0
-5 W, 10 V Zener or TVS is\nmandatorry on +Batt\nin case of battery has\nbad connection
+Text Notes 4500 1600 0    50   ~ 0
+5 W, 10 V Zener or TVS is\nmandatorry on +Batt\nin case of battery has\nbad connection\n\nBetter go for TVS
+Text Notes 2750 3150 0    50   ~ 0
+add 200k pull-down
+Text Notes 1400 1750 2    50   ~ 0
+I've killed a diode,\nmaybe need a\n100 V TVS across \nthe dynamo input
 $EndSCHEMATC
