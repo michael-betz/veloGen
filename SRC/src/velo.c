@@ -107,9 +107,13 @@ int counter_read()
 	return diffCnt;
 }
 
+static bool flip_buttons = false;
+
 static void touch_init()
 {
-	touch_threshold = jGetI(getSettings(), "touch_threshold", 12);
+	cJSON *s = getSettings();
+	touch_threshold = jGetI(s, "touch_threshold", 12);
+	flip_buttons = jGetB(s, "oled_rotate_180", false);
 
 	// Arduino API is broken, use IDF one
 	touch_pad_init();
@@ -164,7 +168,7 @@ unsigned button_read()
 
 	for (int i=0; i<N_PINS; i++) {
 		uint16_t tmp;
-		touch_pad_read(tPins[i], &tmp);
+		touch_pad_read(tPins[flip_buttons ? N_PINS - 1 - i : i], &tmp);
 		tpv[i] = tinit[i] - tmp;
 		if (tpv[i] > touch_threshold) {
 			state |= 1 << i;
