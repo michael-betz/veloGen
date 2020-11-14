@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 MQTT client which subscribes to the velogen/raw topic, takes the data,
 sanity checks and massages it a bit and appends it to a .csv file.
@@ -17,7 +18,9 @@ rx_ts_dict = dict()
 
 def on_disconnect(client, userdata, rc):
     print("Disconnected", rc)
-    clean_write()
+    for tp in tmpDatas:
+        clean_write(tp)
+        rx_ts_dict[tp] = None
     client.connect(args.host)
 
 
@@ -33,7 +36,7 @@ def on_connect(client, userdata, flags, rc):
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     rx_ts_dict[msg.topic] = datetime.now().timestamp()
-    # print(msg.topic, msg.payload)
+    print(msg.topic, msg.payload)
 
     for i in range(len(msg.payload) // 16):
         tmp = unpack("Iiii", msg.payload[i * 16: (i + 1) * 16])
