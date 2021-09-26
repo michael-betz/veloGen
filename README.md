@@ -52,3 +52,41 @@ Speed and distance is tracked by measuring the zero crossings of the hub dynamo 
   * Need to find less huge connectors for battery, dynamo and I2C
   * Add OLED to case (Case and PCB can be made wider)
 
+# Bringup (rev1)
+  * connect pogo pin adapter to board and USB serial cable
+  * force flash voltage to 3.3V
+
+```bash
+$ espefuse.py set_flash_voltage 3.3V
+espefuse.py v2.7
+Connecting........_____....._
+Enable internal flash voltage regulator (VDD_SDIO) to 3.3V.
+The following efuses are burned: XPD_SDIO_FORCE, XPD_SDIO_REG, XPD_SDIO_TIEH.
+This is an irreversible operation.
+Type 'BURN' (all capitals) to continue.
+BURN
+VDD_SDIO setting complete.
+
+$ esptool.py flash_id
+esptool.py v2.7
+Found 1 serial ports
+Serial port /dev/ttyUSB0
+Connecting........__
+Detecting chip type... ESP32
+Chip is ESP32D0WDQ5 (revision 1)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: 40:f5:20:5c:8d:48
+Uploading stub...
+Running stub...
+Stub running...
+Manufacturer: c8
+Device: 4018
+Detected flash size: 16MB
+Hard resetting via RTS pin..
+```
+
+  * `pio run -t uploadfs`
+  * `pio run -t upload -t monitor`
+
+You should see velogen booting up in the terminal.

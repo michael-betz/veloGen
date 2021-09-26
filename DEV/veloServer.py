@@ -10,6 +10,7 @@ from paho.mqtt.client import Client
 from struct import unpack
 from datetime import datetime
 from numpy import array, int32, diff, savetxt
+import atexit
 
 args = None
 tmpDatas = defaultdict(list)
@@ -66,6 +67,14 @@ def clean_write(tp):
         savetxt(f, arr, delimiter=', ', fmt='%d')
 
 
+def commit():
+    for tp, rts in rx_ts_dict.items():
+        if rts is not None:
+            # dump to file after 30 s of silence
+            clean_write(tp)
+            rx_ts_dict[tp] = None
+
+
 def main():
     global args
     parser = ArgumentParser(description=__doc__)
@@ -84,6 +93,8 @@ def main():
     c.on_disconnect = on_disconnect
     c.on_message = on_message
     c.connect(args.host)
+
+    atexit.register(commit)
 
     while True:
         ts = datetime.now().timestamp()
