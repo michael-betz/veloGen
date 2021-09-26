@@ -116,8 +116,8 @@ static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, 
 		// Found a known good WIFI, connect to it ...
 		wifi_config_t cfg;
 		memset(&cfg, 0, sizeof(cfg));
-		strncpy((char*)cfg.sta.ssid, ssid, 32);
-		strncpy((char*)cfg.sta.password, pw, 64);
+		strncpy((char*)cfg.sta.ssid, ssid, 31);
+		strncpy((char*)cfg.sta.password, pw, 63);
 		cfg.sta.scan_method = WIFI_FAST_SCAN;
 		cfg.sta.bssid_set = true;
 		memcpy(cfg.sta.bssid, ap_info[i].bssid, 6);

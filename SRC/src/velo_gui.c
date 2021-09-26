@@ -42,16 +42,12 @@ static t_label stat_lbl = {
 static void big_num(bool isInit, int type, unsigned btns)
 {
 	static t_label big_lbl;
-	static bool isDyn = true;
 	static const char * const units[] = {"km/h", "mA", "V", "W"};
 	static const char * const symbols[] = {SYM_TACHO, SYM_PLUG, SYM_CAR_BATTERY, SYM_BOLT};
 
 	// toggle dynamo
-	if (btns & (1 << 1)) {
-		isDyn = !isDyn;
-		gpio_set_level(P_DYN, isDyn);
-		setStatus(isDyn ? "Dyn ON!" : "Dyn off");
-	}
+	if (btns & (1 << 1))
+		setDynamo(-1);
 
 	// toggle wifi
 	if (btns & (1 << 2))

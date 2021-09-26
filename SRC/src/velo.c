@@ -47,6 +47,20 @@ float g_speed=0;
 // settings from the .json file
 static int um_p_pulse=0, touch_threshold=0;
 
+// val: -1: toggle, 0: Off, 1: On
+void setDynamo(int val)
+{
+	static bool isDyn = false;
+	bool isDyn_ = isDyn;
+	if (val == -1)
+		isDyn = !isDyn;
+	else
+		isDyn = val > 0;
+	gpio_set_level(P_DYN, isDyn);
+	if (isDyn != isDyn_)
+		setStatus(isDyn ? "Dyn ON!" : "Dyn off");
+}
+
 // Pulse counter to count wheel rotations
 static void counter_init()
 {
@@ -190,7 +204,7 @@ unsigned button_read()
 
 void velogen_init()
 {
-	gpio_set_direction(P_DYN, GPIO_MODE_OUTPUT);
+	gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
 	gpio_set_direction(P_AC, GPIO_MODE_INPUT);
 	gpio_set_level(P_DYN, 1);
 
@@ -253,7 +267,7 @@ void velogen_loop()
 
 	// crude battery protection
 	if (g_mVolts > 8400)
-		gpio_set_level(P_DYN, 0);
+		setDynamo(0);
 
 	if (counter_read()) {
 		ts_sleep = curTs;

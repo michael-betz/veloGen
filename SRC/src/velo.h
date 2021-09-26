@@ -34,4 +34,7 @@ unsigned button_read();
 // accumulate wheel rotations in g_wheelCnt
 int counter_read();
 
+// val: -1: toggle, 0: Off, 1: On
+void setDynamo(int val);
+
 #endif
