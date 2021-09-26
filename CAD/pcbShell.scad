@@ -150,7 +150,7 @@ module pcbUpperShell(){
         difference() {
             rotate([0, 180, 0]) pcbHalfShell(4, isMirror=true);
             // Display cut-out
-            translate([0, 13.4, 3.5]) cube(size=[29, 22, 4], center=true);
+            translate([0, 13.4 + 3 / 2, 3.5]) cube(size=[29, 22 + 3, 4], center=true);
             translate([0, 15.25, 6]) cube(size=[25, 13.5, 4], center=true);
 
             // Antenna cut-out
@@ -160,8 +160,8 @@ module pcbUpperShell(){
             upperConCutout();
 
             // Zip tie notches
-            translate([0,  30, 0]) zip_tie_cutter();
-            translate([0, -30, 0]) zip_tie_cutter();
+            translate([0,  32, 0]) zip_tie_cutter();
+            translate([0, -32, 0]) zip_tie_cutter();
 
             // Buttons
             translate([0, 0, 0.5]) touchy(7);
@@ -176,26 +176,27 @@ module pcbUpperShell(){
             }
         }
         // Antenna gap closer
-        translate([16.35 + 3.25, -14.2, 0.15]) cube(size=[3.5, 18.5, 1.7], center=true);
+        tmp = 0.85;
+        translate([16.35 + 3.25, -14.2, 0.15 + tmp/2]) cube(size=[3.5, 18.5, 1.7 + tmp], center=true);
         // lower con gap closer
         translate([-32.25 / 2, -38.97, -0.74]) cube(size=[32.25, 3.75, 1.5], center=false);
     }
 }
 
 // PCB mockup
-// pcb();
+// translate([0, 0, 0]) pcb();
 
 // Cutting plane view
 // intersection(){
 //     pcbUpperShell();
-//     translate([-20, 0, 0]) cube(size=[50, 100, 50], center=true);
+//     translate([0, -60, 0]) cube(size=[50, 100, 50], center=true);
 // }
 
 // export upper shell
 pcbUpperShell();
 
 // export lower shell
-// pcbLowerShell();
+// translate([0, 0, -10]) pcbLowerShell();
 
 // export spacer
 // oled_spacer();
