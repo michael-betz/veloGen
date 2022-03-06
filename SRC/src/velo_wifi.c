@@ -149,7 +149,7 @@ static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, voi
 	sntp_init();
 
 	// esp_mqtt_client_reconnect(mqtt_c);
-	esp_mqtt_client_start(mqtt_c);
+	// esp_mqtt_client_start(mqtt_c);
 }
 
 static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
@@ -165,7 +165,7 @@ static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id,
 	setStatus("No wifi");
 	sntp_stop();
 	esp_wifi_stop();
-	esp_mqtt_client_stop(mqtt_c);
+	// esp_mqtt_client_stop(mqtt_c);
 	// esp_mqtt_client_disconnect(mqtt_c);
 	isConnect = false;
 	isMqttConnect = false;

@@ -9,8 +9,11 @@
 #include "driver/touch_pad.h"
 #include "driver/i2c.h"
 #include "driver/rtc_io.h"
+#include "driver/rmt.h"
 #include "mqtt_client.h"
 #include "time.h"
+#include "SPI_ws2812.h"
+#include "fast_hsv2rgb.h"
 #include "ssd1306.h"
 #include "ina219.h"
 #include "json_settings.h"
@@ -43,6 +46,9 @@ static uint16_t tinit[N_PINS];
 static int tpv[N_PINS];
 
 float g_speed=0;
+
+// LED strip colors
+uint32_t pixels[N_LEDS];
 
 // settings from the .json file
 static int um_p_pulse=0, touch_threshold=0;
@@ -155,6 +161,10 @@ void velogen_sleep(bool isReboot)
 	inaOff();
 	ssd_poweroff();
 	gpio_set_level(P_DYN, 0);
+	gpio_set_level(P_5V, 0);
+
+	memset(pixels, 0, 4 * N_LEDS);
+	led_strip_update(pixels);
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -202,11 +212,37 @@ unsigned button_read()
 	return release;
 }
 
+void velo_strip_update()
+{
+ //    static uint16_t h=0;
+ //    uint8_t r, g, b;
+ //    for (unsigned i=0; i<N_LEDS; i++) {
+ //    	fast_hsv2rgb_32bit(h + i * 1000, 200, 128, &r, &g, &b);
+	// 	pixels[i] = (b << 16) | (g << 8) | r;
+ //    }
+	// h += 1000;
+	static unsigned i=0, j=0, val=0x88;
+
+	if (j++ % 8)
+		return;
+
+	if (i++ >= N_LEDS) {
+		i = 0;
+		val = (val << 8) | ((val >> 16) & 0xFF);
+	}
+
+	memset(pixels, 0, 4 * N_LEDS);
+	pixels[i] = val;
+	led_strip_update(pixels);
+}
+
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
+	gpio_set_direction(P_5V, GPIO_MODE_INPUT_OUTPUT);
 	gpio_set_direction(P_AC, GPIO_MODE_INPUT);
-	gpio_set_level(P_DYN, 1);
+	setDynamo(1);
+	gpio_set_level(P_5V, 1);
 
 	counter_init();
 
@@ -222,6 +258,7 @@ void velogen_init()
 	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 
 	cJSON *s = getSettings();
+
 
 	// init oled
 	ssd_init();
@@ -249,8 +286,13 @@ void velogen_init()
 	sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
 
 	initVeloWifi();
-	cache_init();  // open / create cache file on SPIFFS
-	tryConnect();
+	// cache_init();  // open / create cache file on SPIFFS
+	// tryConnect();
+
+	// init led strip last, so power can stabilize
+	memset(pixels, 0, 4 * N_LEDS);
+	initSPIws2812();
+	led_strip_update(pixels);
 }
 
 // main loop, called precisely every 50 ms
@@ -275,13 +317,15 @@ void velogen_loop()
 	}
 
 	// 20 Hz max.
-	cache_handle();
+	// cache_handle();
 
 	if (draw_screen())
 		ts_sleep = curTs;
 
 	if ((curTs - ts_sleep) > sleepTimeout)
 		velogen_sleep(false);
+
+	velo_strip_update();
 
 	// we stopped, try to connect to wifi after 10s
 	// if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
