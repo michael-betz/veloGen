@@ -147,8 +147,8 @@ void cache_init()
 	log_i("Publishing to %s", mqtt_topic);
 
 	// register for MQTT events
-	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, mqtt_c));
-	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, mqtt_c));
+	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, NULL));
+	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, NULL));
 	E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
 
 	load_ptrs();
@@ -195,7 +195,6 @@ void cache_handle()
 		ST_WAIT_FOR_PUB // wait for ACK of block
 	} tx_state;
 
-	bool isCon = isMqttConnect;
 	static char *buf = NULL;
 	static int initial_block_N=0;  // [blocks]
 	static int nTX = 0;  // [blocks]
@@ -217,7 +216,7 @@ void cache_handle()
 		switch (tx_state) {
 			case ST_ONLINE_CA:
 				// freshly offline, but there's still data in the cache
-				if (!isCon) {
+				if (!isMqttConnect) {
 					commit_ptrs();
 					tx_state = ST_OFFLINE;
 					break;
@@ -258,6 +257,9 @@ void cache_handle()
 					fclose(f_buf);
 					f_buf = fopen(FILE_BUF, "r+");
 					free(buf);
+					block_first = 0;
+					block_N = 0;
+					commit_ptrs();
 					break;
 				}
 
@@ -267,10 +269,11 @@ void cache_handle()
 
 				tx_state = ST_WAIT_FOR_PUB;
 				// short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
+				__attribute__ ((fallthrough));
 
 			case ST_WAIT_FOR_PUB:
 				// went off-line while waiting for MQTT ACK
-				if (!isCon) {
+				if (!isMqttConnect) {
 					commit_ptrs();
 					tx_state = ST_OFFLINE;
 					break;
@@ -293,14 +296,14 @@ void cache_handle()
 
 			case ST_ONLINE:
 				// freshly offline, cache is empty
-				if (!isCon) {
+				if (!isMqttConnect) {
 					tx_state = ST_OFFLINE;
 				}
 				break;
 
 			case ST_OFFLINE:
 				// freshly online, start emptying the cache
-				if (isCon) {
+				if (isMqttConnect) {
 					// How many blocks are in the cache?
 					initial_block_N = block_N;
 					tx_state = ST_ONLINE_CA;
@@ -315,7 +318,7 @@ void cache_handle()
 		return;
 	}
 
-	if (isCon) {
+	if (isMqttConnect) {
 		// if mqtt is connected, publish immediately with QOS1
 		esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)&datum, sizeof(datum), 1, 0);
 	} else {

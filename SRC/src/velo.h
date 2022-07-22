@@ -3,7 +3,7 @@
 #define VELO_H
 
 // ESP_IDF is too verbose
-#define E(x) ESP_ERROR_CHECK(x)
+#define E(x) ESP_ERROR_CHECK_WITHOUT_ABORT(x)
 #define log_e(format, ...) ESP_LOGE(T, format, ##__VA_ARGS__)
 #define log_w(format, ...) ESP_LOGW(T, format, ##__VA_ARGS__)
 #define log_i(format, ...) ESP_LOGI(T, format, ##__VA_ARGS__)

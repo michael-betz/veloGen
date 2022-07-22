@@ -17,8 +17,8 @@
 
 static const char *T = "VELO_WIFI";
 
-extern const char DST_Root_CA_X3_pem[] asm("_binary_DST_Root_CA_X3_pem_start");
-extern const char DST_Root_CA_X3_pem_e[] asm("_binary_DST_Root_CA_X3_pem_end");
+extern const char ROOT_CERT[] asm("_binary_root_cert_pem_start");
+extern const char ROOT_CERT_E[] asm("_binary_root_cert_pem_end");
 
 bool isConnect = false;
 bool isMqttConnect = false;
@@ -148,8 +148,8 @@ static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, voi
 	sntp_setservername(0, (char *)"pool.ntp.org");
 	sntp_init();
 
-	// esp_mqtt_client_reconnect(mqtt_c);
-	// esp_mqtt_client_start(mqtt_c);
+	esp_mqtt_client_start(mqtt_c);
+	esp_mqtt_client_reconnect(mqtt_c);
 }
 
 static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
@@ -165,10 +165,10 @@ static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id,
 	setStatus("No wifi");
 	sntp_stop();
 	esp_wifi_stop();
-	// esp_mqtt_client_stop(mqtt_c);
-	// esp_mqtt_client_disconnect(mqtt_c);
-	isConnect = false;
+	esp_mqtt_client_stop(mqtt_c);
+	esp_mqtt_client_disconnect(mqtt_c);
 	isMqttConnect = false;
+	isConnect = false;
 }
 
 void initVeloWifi()
@@ -204,17 +204,17 @@ void initVeloWifi()
 	// MQTT client
 	esp_mqtt_client_config_t mqtt_cfg;
 	memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
-	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "");
+	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "null");
 
 	// Root certificate to verify server public keys are legit
 	// copy of /etc/ssl/certs/DST_Root_CA_X3.pem
 	// matching broker configuration using letsencrypt:
 	// https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
-	mqtt_cfg.cert_pem = DST_Root_CA_X3_pem;
-	mqtt_cfg.cert_len = DST_Root_CA_X3_pem_e - DST_Root_CA_X3_pem;
+	mqtt_cfg.cert_pem = ROOT_CERT;
+	// mqtt_cfg.cert_len = ROOT_CERT_E - ROOT_CERT;
 	mqtt_cfg.disable_auto_reconnect = true;
 	mqtt_cfg.buffer_size = 256;
-	mqtt_cfg.out_buffer_size = 2048;
+	mqtt_cfg.out_buffer_size = 4096;
 	mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
 	if (!mqtt_c)
 		log_e("Error initializing mqtt client");

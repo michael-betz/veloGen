@@ -226,7 +226,7 @@ void velo_strip_update()
 	if (j++ % 8)
 		return;
 
-	if (i++ >= N_LEDS) {
+	if (++i >= N_LEDS) {
 		i = 0;
 		val = (val << 8) | ((val >> 16) & 0xFF);
 	}
@@ -286,8 +286,8 @@ void velogen_init()
 	sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
 
 	initVeloWifi();
-	// cache_init();  // open / create cache file on SPIFFS
-	// tryConnect();
+	tryConnect();
+	cache_init();  // open / create cache file on SPIFFS
 
 	// init led strip last, so power can stabilize
 	memset(pixels, 0, 4 * N_LEDS);
@@ -302,7 +302,7 @@ void velogen_loop()
 
 	int curTs = xTaskGetTickCount();
 	static int ts_sleep=0;
-	// static int ts_con=300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
+	static int ts_con=300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
 
 	g_mVolts = inaV();
 	g_mAmps = inaI();
@@ -313,11 +313,11 @@ void velogen_loop()
 
 	if (counter_read()) {
 		ts_sleep = curTs;
-		// ts_con = curTs;
+		ts_con = curTs;
 	}
 
 	// 20 Hz max.
-	// cache_handle();
+	cache_handle();
 
 	if (draw_screen())
 		ts_sleep = curTs;
@@ -328,11 +328,11 @@ void velogen_loop()
 	velo_strip_update();
 
 	// we stopped, try to connect to wifi after 10s
-	// if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
-	// 	tryConnect();
-	// 	// don't try to re-connect in the next 5 minutes
-	// 	ts_con += sleepTimeout;
-	// }
+	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
+		tryConnect();
+		// don't try to re-connect in the next 5 minutes
+		ts_con += sleepTimeout;
+	}
 
 	frm++;
 }
