@@ -4,7 +4,7 @@ MQTT client which subscribes to the velogen/raw topic, takes the data,
 sanity checks and massages it a bit and sends it to grafana / database
 '''
 from argparse import ArgumentParser
-from paho.mqtt.client import Client
+from paho.mqtt.client import Client, connack_string
 from struct import unpack
 from datetime import datetime
 
@@ -18,12 +18,11 @@ write_api = None
 
 
 def on_disconnect(client, userdata, rc):
-    print("Disconnected", rc)
-    client.connect(args.host)
+    print("Disconnected", connack_string(rc))
 
 
 def on_connect(client, userdata, flags, rc):
-    print("Connected", rc)
+    print("Connected", connack_string(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
@@ -70,14 +69,24 @@ def main():
         "-d", action='store_true',
         help='enable debug output'
     )
+    parser.add_argument(
+        "--user", default=None,
+        help="username"
+    )
+    parser.add_argument(
+        "--pw", default=None,
+        help="password"
+    )
 
     args = parser.parse_args()
 
-    c = Client()
-    c.on_connect = on_connect
-    c.on_disconnect = on_disconnect
-    c.on_message = on_message
-    c.connect(args.host)
+    client = Client()
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.on_message = on_message
+    if args.user is not None and args.pw is not None:
+        client.username_pw_set(args.user, args.pw)
+    client.connect(args.host)
 
     # For influxdb2 only
     db = InfluxDBClient(
@@ -88,7 +97,7 @@ def main():
     write_api = db.write_api(write_options=SYNCHRONOUS)
 
     while True:
-        c.loop(1.0)
+        client.loop(timeout=1.0)
 
 
 if __name__ == '__main__':
