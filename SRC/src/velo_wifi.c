@@ -10,7 +10,7 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "esp_event.h"
-// #include "static_ws.h"
+#include "static_ws.h"
 #include "mqtt_client.h"
 #include "velo.h"
 #include "velo_gui.h"
@@ -150,6 +150,8 @@ static void got_ip(void* arg, esp_event_base_t event_base, int32_t event_id, voi
 
 	esp_mqtt_client_start(mqtt_c);
 	esp_mqtt_client_reconnect(mqtt_c);
+
+	startWebServer();  // for editing settings
 }
 
 static void got_discon(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)

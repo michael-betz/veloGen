@@ -1,6 +1,7 @@
 // #include "mqtt_client.h"
 #include <errno.h>
 #include <string.h>
+#include <math.h>
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
@@ -121,6 +122,9 @@ int counter_read()
 	// [milli counts / milli second] = [counts / second]
 	float dC_dT = diffCnt * 1000.0 / (float)(ts - ts_) / portTICK_PERIOD_MS;
 	dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
+
+	if (!isnormal(g_speed))
+		g_speed = 0.0;
 	g_speed += 0.03 * (dC_dT - g_speed);
 
 	ts_ = ts;

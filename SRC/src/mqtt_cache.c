@@ -18,10 +18,12 @@ static const char *T = "MQTT_CACHE";
 
 // format of one measurement
 typedef struct {
-	unsigned ts;
-	unsigned volts;
-	int amps;
-	unsigned cnt;
+	uint32_t ts;
+	uint16_t volts;
+	int16_t amps;
+	uint16_t speed;
+	uint16_t unused;
+	uint32_t cnt;
 } t_datum;
 #define BLOCK_SIZE sizeof(t_datum)
 
@@ -183,6 +185,15 @@ void cache_init()
 	}
 }
 
+
+// unsigned timestamp_miliseconds() {
+// 	struct timeval tv;
+// 	gettimeofday(&tv, NULL);
+// 	uint64_t tmp = tv.tv_sec * 1000LL + (tv.tv_usec / 1000LL);
+// 	tmp %= 31536000LL * 1000;
+// 	return tmp;
+// }
+
 // call this to take a measurement and deal with them
 void cache_handle()
 {
@@ -198,19 +209,6 @@ void cache_handle()
 	static char *buf = NULL;
 	static int initial_block_N=0;  // [blocks]
 	static int nTX = 0;  // [blocks]
-
-	// collect a new data point
-	time_t now = time(NULL);
-	t_datum datum;
-	datum.ts = now;
-	datum.volts = g_mVolts;
-	datum.amps = g_mAmps;
-	datum.cnt = g_wheelCnt;
-
-	// datum.ts = seq;
-	// datum.volts = 1;
-	// datum.amps = 2;
-	// datum.cnt = 3;
 
 	if (f_buf){
 		switch (tx_state) {
@@ -313,13 +311,24 @@ void cache_handle()
 	}
 
 	// shall we take a new data point?
-	if (!(meas_ticks > 0 && (seq % meas_ticks) == 0)) {
-		seq++;
+	if (!(meas_ticks > 0 && (seq++ % meas_ticks) == 0)) {
 		return;
 	}
 
+	// collect a new data point
+	t_datum datum;
+	datum.ts = time(NULL);	// TODO need higher resolution timestamps
+	datum.volts = g_mVolts;
+	datum.amps = g_mAmps;
+	datum.speed = (uint16_t)(g_speed * 100);  // [km/h * 100]
+
+	datum.cnt = g_wheelCnt;
+	// static uint32_t tmp_cnt = 0;
+	// datum.cnt = tmp_cnt++;
+
 	if (isMqttConnect) {
 		// if mqtt is connected, publish immediately with QOS1
+		// log_d("datum publish %d, %f", datum.cnt, g_speed);
 		esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)&datum, sizeof(datum), 1, 0);
 	} else {
 		// otherwise append to ring buffer file on SPIFFS
@@ -339,6 +348,7 @@ void cache_handle()
 			}
 		}
 
+		// log_d("datum fwrite %d, %f", datum.cnt, g_speed);
 		if (fwrite(&datum, BLOCK_SIZE, 1, f_buf) != 1) {
 			log_e("%s write error! write %d. Stopping caching.", FILE_BUF, BLOCK_SIZE);
 			fclose(f_buf);
@@ -352,10 +362,7 @@ void cache_handle()
 		} else {
 			block_first = (block_first + 1) % MAX_CACHE_SIZE;
 		}
-		if ((m_seq % 10) == 0)
+		if ((m_seq++ % 30) == 0)
 			commit_ptrs();
 	}
-
-	m_seq++;
-	seq++;
 }
