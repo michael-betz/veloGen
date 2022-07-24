@@ -42,16 +42,17 @@ def on_message(client, userdata, msg):
         return
 
     for i in range(ll // 16):
-        d = unpack("Iiii", msg.payload[i * 16: (i + 1) * 16])
+        ts, volts, amps, speed, unused, cnt = \
+            unpack("IHhHHI", msg.payload[i * 16: (i + 1) * 16])
         # only accept timestamps +- 1 year from now
-        if abs(datetime.now().timestamp() - d[0]) < (365 * 24 * 60):
+        if abs(datetime.now().timestamp() - ts) < (365 * 24 * 60 * 60):
             write_api.write(
                 bucket,
                 organization,
-                f'{msg.topic} vbatt={d[1]},ibatt={d[2]},ticks={d[3]} {d[0] * 1e9:.0f}'
+                f'{msg.topic} vbatt={volts},ibatt={amps},ticks={cnt},speed={speed / 100} {ts * 1e9:.0f}'
             )
         else:
-            print('invalid ts', d)
+            print('invalid ts', ts)
 
 
 def main():
