@@ -243,6 +243,7 @@ void cache_handle()
 					log_e("Could not allocate buffer :(");
 					break;
 				}
+				log_i("fseek %d", block_first * BLOCK_SIZE);
 				if (fseek(f_buf, block_first * BLOCK_SIZE, SEEK_SET) < 0) {
 					log_e("READ seek failed, to %d, %s", block_first * BLOCK_SIZE, strerror(errno));
 					free(buf);
@@ -251,8 +252,8 @@ void cache_handle()
 				int ret = fread(buf, nTX * BLOCK_SIZE, 1, f_buf);
 				if (ret != 1) {
 					log_e("READ fread failed :(, read %d, ret %d", nTX * BLOCK_SIZE, ret);
-					esp_log_level_set("SPIFFS", ESP_LOG_DEBUG);
 					fclose(f_buf);
+
 					f_buf = fopen(FILE_BUF, "r+");
 					free(buf);
 					block_first = 0;
