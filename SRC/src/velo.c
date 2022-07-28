@@ -14,7 +14,6 @@
 #include "mqtt_client.h"
 #include "time.h"
 #include "SPI_ws2812.h"
-#include "fast_hsv2rgb.h"
 #include "ssd1306.h"
 #include "ina219.h"
 #include "json_settings.h"
@@ -46,13 +45,16 @@ static uint16_t tinit[N_PINS];
 // Current delta values
 static int tpv[N_PINS];
 
-float g_speed=0;
+int g_speed = 0;  // [km * 10 / h]
 
 // LED strip colors
 uint32_t pixels[N_LEDS];
 
 // settings from the .json file
-static int um_p_pulse=0, touch_threshold=0;
+// wheel circumference = 2155 mm
+// pulses / revolution = 13
+// distance / pulse = 165769 um
+static unsigned um_p_pulse=0, touch_threshold=0;
 
 // val: -1: toggle, 0: Off, 1: On
 void setDynamo(int val)
@@ -71,9 +73,6 @@ void setDynamo(int val)
 // Pulse counter to count wheel rotations
 static void counter_init()
 {
-	// wheel circumference = 2155 mm
-	// pulses / revolution = 13
-	// distance / pulse = 165769 um
 	um_p_pulse = jGetI(getSettings(), "um_p_pulse", 165769);
 
 	pcnt_config_t pcnt_config = {
@@ -105,29 +104,67 @@ static void counter_init()
 	pcnt_counter_resume(PCNT_UNIT_0);
 }
 
-int counter_read()
+// Moving average over 2**MA_WIDTH values
+#define MA_WIDTH 6
+
+// convert [um / MA_TIME] to [km * 10 / h]
+#define CONV_CONST (CYCLE_MS * (1<<MA_WIDTH) * 277778ll / 10000)
+
+unsigned ma(unsigned val)
 {
-	int diffCnt = 0;
+	#define MA_MASK ((1 << MA_WIDTH) - 1)
+	static unsigned mas[1 << MA_WIDTH], wp=0;
+
+	mas[wp] = val;
+	wp = (wp + 1) & MA_MASK;
+
+	unsigned sum = 0;
+	for (unsigned i=0; i<(1 << MA_WIDTH); i++)
+		sum += mas[i];
+	return sum;
+}
+
+unsigned counter_read()
+{
+	int diffCnt=0;
+	unsigned diffCnt_avg=0;
 	static int16_t lastCnt = 0;
-	static unsigned ts_ = 0;
-	unsigned ts = xTaskGetTickCount();
+	// static unsigned ts_ = 0;
+	// unsigned ts = xTaskGetTickCount();
 	int16_t pCnt = 0;
-	if(pcnt_get_counter_value(PCNT_UNIT_0, &pCnt) == ESP_OK) {
-		diffCnt = pCnt - lastCnt;
-		g_wheelCnt += diffCnt;
-		lastCnt = pCnt;
+	if(pcnt_get_counter_value(PCNT_UNIT_0, &pCnt) != ESP_OK) {
+		log_e("Failed reading counter :(");
+		return 0;
 	}
+
+	diffCnt = pCnt - lastCnt;
+	lastCnt = pCnt;
+	if (diffCnt < 0 || diffCnt > 50) {
+		log_e("Bad diffCnt: %d", diffCnt);
+		return 0;
+	}
+	g_wheelCnt += diffCnt;
 
 	// TODO convert this calculation and IIR filter to fixed point integer
 	// [milli counts / milli second] = [counts / second]
-	float dC_dT = diffCnt * 1000.0 / (float)(ts - ts_) / portTICK_PERIOD_MS;
-	dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
+	// float dC_dT = diffCnt * 1000.0 / 50e-3;  // fixed 50 ms cycle rate
+	// dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
 
-	if (!isnormal(g_speed))
-		g_speed = 0.0;
-	g_speed += 0.03 * (dC_dT - g_speed);
+	// example values at 40 km/h
+	// diffCnt: [pulses / 50 ms]: 3.35
+	// diffCnt_avg  [pulses / 3200 ms]: 214.4
+	// diffCnt_avg * um_p_pulse  [um / 3200 ms]: 35540873.6
 
-	ts_ = ts;
+	diffCnt_avg = ma(diffCnt);
+
+	// [km * 10 / h]
+	g_speed = (diffCnt_avg * um_p_pulse + (CONV_CONST / 2)) / CONV_CONST;
+
+	// if (!isnormal(g_speed))
+	// 	g_speed = 0.0;
+	// g_speed += 0.03 * (dC_dT - g_speed);
+
+	// ts_ = ts;
 	return diffCnt;
 }
 
@@ -316,6 +353,7 @@ void velogen_loop()
 		setDynamo(0);
 
 	if (counter_read()) {
+		// If wheel was moved
 		ts_sleep = curTs;
 		ts_con = curTs;
 	}

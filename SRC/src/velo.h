@@ -21,10 +21,11 @@
 #define P_EN1 GPIO_NUM_26  // Empty
 #define P_EN2 GPIO_NUM_36  // Empty
 
+#define CYCLE_MS 50
 #define N_LEDS 17           // Length of the LED strip
 
 extern unsigned g_wheelCnt;  // accumulated wheel pulses since power up
-extern float g_speed;  // current speed [km/h]
+extern int g_speed;  // current speed [km * 10 / h]
 extern int g_mVolts;  // battery voltage [mV]
 extern int g_mAmps;  // battery current, [mA] negative = discharging
 
@@ -38,7 +39,7 @@ void velogen_sleep(bool isReboot);
 unsigned button_read();
 
 // accumulate wheel rotations in g_wheelCnt
-int counter_read();
+unsigned counter_read();
 
 // val: -1: toggle, 0: Off, 1: On
 void setDynamo(int val);

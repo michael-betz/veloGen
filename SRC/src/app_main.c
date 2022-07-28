@@ -58,6 +58,6 @@ void app_main()
 		velogen_loop();
 
 		// Run with a fixed 20 Hz cycle rate
-		vTaskDelayUntil(&xLastWakeTime, 50 / portTICK_PERIOD_MS);
+		vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
 	}
 }

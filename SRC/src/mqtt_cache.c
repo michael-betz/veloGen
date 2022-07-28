@@ -321,7 +321,7 @@ void cache_handle()
 	datum.ts = time(NULL);	// TODO need higher resolution timestamps
 	datum.volts = g_mVolts;
 	datum.amps = g_mAmps;
-	datum.speed = (uint16_t)(g_speed * 100);  // [km/h * 100]
+	datum.speed = (uint16_t)g_speed;  // [km/h * 10]
 
 	datum.cnt = g_wheelCnt;
 	// static uint32_t tmp_cnt = 0;
