@@ -54,7 +54,8 @@ uint32_t pixels[N_LEDS];
 // wheel circumference = 2155 mm
 // pulses / revolution = 13
 // distance / pulse = 165769 um
-static unsigned um_p_pulse=0, touch_threshold=0;
+static unsigned um_p_pulse=0;
+static int touch_threshold=0;
 
 // val: -1: toggle, 0: Off, 1: On
 void setDynamo(int val)
@@ -173,7 +174,7 @@ static bool flip_buttons = false;
 static void touch_init()
 {
 	cJSON *s = getSettings();
-	touch_threshold = jGetI(s, "touch_threshold", 12);
+	touch_threshold = jGetI(s, "touch_threshold", 30);
 	flip_buttons = jGetB(s, "oled_rotate_180", false);
 
 	// Arduino API is broken, use IDF one
@@ -246,7 +247,7 @@ unsigned button_read()
 			release |= 1 << i;
 
 	// if (state)
-	//     log_v("TP: %3d %3d %3d %3d", tpv[0], tpv[1], tpv[2], tpv[3]);
+	//     log_i("TP: %3d %3d %3d %3d", tpv[0], tpv[1], tpv[2], tpv[3]);
 
 	state_ = state;
 
