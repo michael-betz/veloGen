@@ -66,7 +66,7 @@ static void big_num(bool isInit, int type, unsigned btns)
 	// clears and prints dynamic content into BB
 	switch (type) {
 		case 0:
-			lv_update_label(&big_lbl, "%d", g_speed);
+			lv_update_label(&big_lbl, "%d", g_speed / 10);
 			break;
 
 		case 1:

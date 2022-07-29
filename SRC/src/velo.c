@@ -105,7 +105,7 @@ static void counter_init()
 }
 
 // Moving average over 2**MA_WIDTH values
-#define MA_WIDTH 6
+#define MA_WIDTH 5
 
 // convert [um / MA_TIME] to [km * 10 / h]
 #define CONV_CONST (CYCLE_MS * (1<<MA_WIDTH) * 277778ll / 10000)
@@ -150,7 +150,7 @@ unsigned counter_read()
 	// float dC_dT = diffCnt * 1000.0 / 50e-3;  // fixed 50 ms cycle rate
 	// dC_dT = dC_dT * (float)um_p_pulse * 36.0 / 10000000.0;  // [km / hour]
 
-	// example values at 40 km/h
+	// example values at 40 km/h, MA_WIDTH = 6
 	// diffCnt: [pulses / 50 ms]: 3.35
 	// diffCnt_avg  [pulses / 3200 ms]: 214.4
 	// diffCnt_avg * um_p_pulse  [um / 3200 ms]: 35540873.6
