@@ -49,7 +49,7 @@ def on_message(client, userdata, msg):
             write_api.write(
                 bucket,
                 organization,
-                f'{msg.topic} vbatt={volts},ibatt={amps},ticks={cnt},speed={speed / 100} {ts * 1e9:.0f}'
+                f'{msg.topic} vbatt={volts},ibatt={amps},ticks={cnt},speed={speed / 10} {ts * 1e9:.0f}'
             )
         else:
             print('invalid ts', ts)
