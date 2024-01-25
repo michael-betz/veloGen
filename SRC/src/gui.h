@@ -1,6 +1,4 @@
-#ifndef GUI_H
-#define GUI_H
-
+#pragma once
 #include "lv_font.h"
 
 //-----------------------------------------------
@@ -32,5 +30,3 @@ typedef struct {
 void lv_init_label(t_label *lbl, int x, int y, lv_font_t *fnt, const char *init, t_align a);
 void lv_update_label(t_label *lbl, const char *format, ...);
 void lv_print(const char *str);
-
-#endif

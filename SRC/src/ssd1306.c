@@ -82,7 +82,7 @@ static void cmd(uint8_t cmd)
 	i2c_master_write_byte(cl, 0x80, true);
 	i2c_master_write_byte(cl, cmd, true);
 	i2c_master_stop(cl);
-	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_PERIOD_MS);
 	if (ret != ESP_OK)
 		ESP_LOGE(T, "cmd failed %x", ret);
 	i2c_cmd_link_delete(cl);
@@ -96,7 +96,7 @@ void ssd_init()
 	i2c_master_write_byte(cl, 0x00, true);
 	i2c_master_write(cl, (uint8_t*)init_dat, sizeof(init_dat), true);
 	i2c_master_stop(cl);
-	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 100 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 100 / portTICK_PERIOD_MS);
 	if (ret != ESP_OK)
 		ESP_LOGE(T, "init failed %x", ret);
 	i2c_cmd_link_delete(cl);
@@ -151,7 +151,7 @@ void ssd_send()
 	i2c_master_write(cl, frameBuff, sizeof(frameBuff), true);
 	i2c_master_stop(cl);
 
-	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 500 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 500 / portTICK_PERIOD_MS);
 	if (ret != ESP_OK)
 		ESP_LOGE(T, "send failed %x", ret);
 	i2c_cmd_link_delete(cl);

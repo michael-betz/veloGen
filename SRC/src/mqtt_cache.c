@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <time.h>
 #include "esp_event.h"
 #include "esp_log.h"
 #include "mqtt_client.h"

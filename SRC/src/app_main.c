@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include "esp32/rom/rtc.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
@@ -33,8 +32,8 @@ void app_main()
 
 	// report status
 	ESP_LOGI(T,
-		"reset reason: %d, heap: %d, min_heap: %d",
-		rtc_get_reset_reason(0),
+		"reset reason: %u, heap: %lu, min_heap: %lu",
+		esp_reset_reason(),
 		esp_get_free_heap_size(),
 		esp_get_minimum_free_heap_size()
 	);

@@ -18,7 +18,7 @@ static void w(uint8_t reg, uint16_t val)
     i2c_master_write_byte(cl, val >> 8, true);
     i2c_master_write_byte(cl, val & 0xFF, true);
     i2c_master_stop(cl);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_PERIOD_MS);
     if (ret != ESP_OK)
         ESP_LOGE(T, "w failed %x", ret);
     i2c_cmd_link_delete(cl);
@@ -48,7 +48,7 @@ static uint16_t rui(uint8_t reg)
     i2c_master_read(cl, buf, 2, false);
     i2c_master_stop(cl);
 
-    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cl, 10 / portTICK_PERIOD_MS);
     if (ret != ESP_OK)
         ESP_LOGE(T, "rui failed %x", ret);
     i2c_cmd_link_delete(cl);

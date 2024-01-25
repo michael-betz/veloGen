@@ -13,7 +13,11 @@
 #include "driver/gpio.h"
 
 void initSPIws2812();
+void led_strip_off();
 void led_strip_update(uint32_t *buf);
+void led_strip_animate();
 
+// how likely an LED is lit [0.0 .. 1.0]
+extern float g_intensity;
 
 #endif /* MAIN_SPI_WS2812_H_ */

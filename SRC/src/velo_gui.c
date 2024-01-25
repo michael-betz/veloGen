@@ -5,6 +5,7 @@
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
+#include "esp_netif.h"
 #include "json_settings.h"
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
@@ -92,10 +93,13 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 		if (isConnect) {
 			startWebServer();
 			lv_init_label(&ota_lbl, 63, 16, &noto_sans_12, "http://000.000.000.000", LV_CENTER);
+
 			// print IP address.
-			tcpip_adapter_ip_info_t ipInfo;
-			tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
-			lv_update_label(&ota_lbl, "http://" IPSTR, IP2STR(&ipInfo.ip));
+			esp_netif_ip_info_t ip_info;
+			esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info);
+			char ip_addr[16];
+			inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
+			lv_update_label(&ota_lbl, "http://%s", ip_addr);
 		}
 		lv_init_label(&ota_lbl, 63, 32, &noto_sans_12, GIT, LV_CENTER);
 		lv_init_label(&ota_lbl, 63, 48, &noto_sans_12, "    push 2 for OTA    ", LV_CENTER);

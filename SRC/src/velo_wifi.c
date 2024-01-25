@@ -128,7 +128,11 @@ static void scan_done(void* arg, esp_event_base_t event_base, int32_t event_id, 
 		E(esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg));
 		E(esp_wifi_connect());
 		E(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
-		E(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, jGetS(getSettings(), "hostname", WIFI_HOST_NAME)));
+		E(esp_netif_set_hostname(
+			esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"),
+			jGetS(getSettings(), "hostname", WIFI_HOST_NAME)
+		));
+
 		setStatus(ssid);
 		return;
 	}
@@ -206,17 +210,17 @@ void initVeloWifi()
 	// MQTT client
 	esp_mqtt_client_config_t mqtt_cfg;
 	memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
-	mqtt_cfg.uri = jGetS(getSettings(), "mqtt_url", "null");
+	mqtt_cfg.broker.address.uri = jGetS(getSettings(), "mqtt_url", "null");
 
 	// Root certificate to verify server public keys are legit
 	// copy of /etc/ssl/certs/DST_Root_CA_X3.pem
 	// matching broker configuration using letsencrypt:
 	// https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
-	mqtt_cfg.cert_pem = ROOT_CERT;
-	// mqtt_cfg.cert_len = ROOT_CERT_E - ROOT_CERT;
-	mqtt_cfg.disable_auto_reconnect = true;
-	mqtt_cfg.buffer_size = 256;
-	mqtt_cfg.out_buffer_size = 4096;
+	mqtt_cfg.broker.verification.certificate = ROOT_CERT;
+	mqtt_cfg.broker.verification.certificate_len = ROOT_CERT_E - ROOT_CERT;
+
+	mqtt_cfg.network.disable_auto_reconnect = true;
+
 	mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
 	if (!mqtt_c)
 		log_e("Error initializing mqtt client");

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include "esp_timer.h"
+#include "esp_random.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
@@ -46,9 +47,6 @@ static uint16_t tinit[N_PINS];
 static int tpv[N_PINS];
 
 int g_speed = 0;  // [km * 10 / h]
-
-// LED strip colors
-uint32_t pixels[N_LEDS];
 
 // settings from the .json file
 // wheel circumference = 2155 mm
@@ -205,8 +203,7 @@ void velogen_sleep(bool isReboot)
 	gpio_set_level(P_DYN, 0);
 	gpio_set_level(P_5V, 0);
 
-	memset(pixels, 0, 4 * N_LEDS);
-	led_strip_update(pixels);
+	led_strip_off();
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -252,30 +249,6 @@ unsigned button_read()
 	state_ = state;
 
 	return release;
-}
-
-void velo_strip_update()
-{
- //    static uint16_t h=0;
- //    uint8_t r, g, b;
- //    for (unsigned i=0; i<N_LEDS; i++) {
- //    	fast_hsv2rgb_32bit(h + i * 1000, 200, 128, &r, &g, &b);
-	// 	pixels[i] = (b << 16) | (g << 8) | r;
- //    }
-	// h += 1000;
-	static unsigned i=0, j=0, val=0x88;
-
-	if (j++ % 8)
-		return;
-
-	if (++i >= N_LEDS) {
-		i = 0;
-		val = (val << 8) | ((val >> 16) & 0xFF);
-	}
-
-	memset(pixels, 0, 4 * N_LEDS);
-	pixels[i] = val;
-	led_strip_update(pixels);
 }
 
 void velogen_init()
@@ -332,9 +305,8 @@ void velogen_init()
 	cache_init();  // open / create cache file on SPIFFS
 
 	// init led strip last, so power can stabilize
-	memset(pixels, 0, 4 * N_LEDS);
 	initSPIws2812();
-	led_strip_update(pixels);
+	g_intensity = jGetD(s, "strip_intensity", 0.25);
 }
 
 // main loop, called precisely every 50 ms
@@ -368,7 +340,7 @@ void velogen_loop()
 	if ((curTs - ts_sleep) > sleepTimeout)
 		velogen_sleep(false);
 
-	velo_strip_update();
+	led_strip_animate();
 
 	// we stopped, try to connect to wifi after 10s
 	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {

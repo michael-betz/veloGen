@@ -13,6 +13,7 @@
     "log_port": 1234,
     "oled_rotate_180": false,
     "oled_rand_invert": false,
+    "strip_intensity": 0.25,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }
