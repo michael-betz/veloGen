@@ -1,6 +1,6 @@
 include<common.scad>
 $fn=120;
-case_poly = 30;
+case_poly = 120;
 
 // PCB mockup
 module pcb(){
@@ -164,9 +164,9 @@ module pcbUpperShell(){
             translate([0, -32, 0]) zip_tie_cutter();
 
             // Buttons
-            translate([0, 0, 0.5]) touchy(7);
+            translate([0, 0, 0.8]) touchy(7);
             difference() {
-                translate([0, 0, 11]) touchy(8.5);
+                translate([0, 0, 11.3]) touchy(8.5);
                 // translate([0, 0, 5]) touchy_pos() {
                 //     translate([0, -.8, 0]) scale(1.5) lbl("🠸");
                 //     lbl("✓");

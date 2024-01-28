@@ -4,3 +4,10 @@
 *.pyc
 fp-info-cache
 up/wpw.py
+*.gcode
+*.stl
+.cache
+*.kicad_prl
+velogen2-backups
+OLD/
+DEV/
