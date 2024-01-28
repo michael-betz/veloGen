@@ -1,4 +1,0 @@
-11c11
-<                     PRIV_REQUIRES lwip mbedtls esp_timer)
----
->                     PRIV_REQUIRES lwip mbedtls)
