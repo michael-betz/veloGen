@@ -107,11 +107,18 @@ static void ota_screen(bool isInit, int type, unsigned btns)
 		ret = -1;
 	}
 	if (doUpdate) {
-		esp_http_client_config_t config = {
+		esp_http_client_config_t hconfig = {
 			.url = jGetS(getSettings(), "ota_url", ""),
 			.cert_pem = ca_cert_start,
 			// FIXME disables security, for development only
 			.skip_cert_common_name_check = true
+		};
+		esp_https_ota_config_t config = {
+			.http_config = &hconfig,
+			.bulk_flash_erase = true,
+			.partial_http_download = false,
+			.max_http_request_size = 0,
+
 		};
 		ret = esp_https_ota(&config);
 		log_w("ret: %d", ret);

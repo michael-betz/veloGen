@@ -11,3 +11,4 @@ up/wpw.py
 velogen2-backups
 OLD/
 DEV/
+*.old

@@ -7,14 +7,13 @@
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
-#include "driver/pcnt.h"
+#include "driver/pulse_cnt.h"
 #include "driver/touch_pad.h"
 #include "driver/i2c.h"
 #include "driver/rtc_io.h"
-#include "driver/rmt.h"
 #include "mqtt_client.h"
 #include "time.h"
-#include "SPI_ws2812.h"
+#include "ws2812.h"
 #include "ssd1306.h"
 #include "ina219.h"
 #include "json_settings.h"
@@ -69,38 +68,67 @@ void setDynamo(int val)
 		setStatus(isDyn ? "Dyn ON!" : "Dyn off");
 }
 
+pcnt_unit_handle_t pcnt_unit = NULL;
+
 // Pulse counter to count wheel rotations
 static void counter_init()
 {
 	um_p_pulse = jGetI(getSettings(), "um_p_pulse", 165769);
 
-	pcnt_config_t pcnt_config = {
-		// Set PCNT input signal and control GPIOs
-		.pulse_gpio_num = P_AC,
-		.ctrl_gpio_num = PCNT_PIN_NOT_USED,
-		// What to do when control input is low or high?
-		.lctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if low
-		.hctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if high
-		// What to do on the positive or negative edge of pulse input?
-		.pos_mode = PCNT_COUNT_INC,  // Count up on the positive edge
-		.neg_mode = PCNT_COUNT_DIS,  // Keep the counter value on the negative edge
-		.counter_h_lim = 0x7FFF,
-		.counter_l_lim = 0,
-		.unit = PCNT_UNIT_0,
-		.channel = PCNT_CHANNEL_0,
+	pcnt_unit_config_t unit_config = {
+		.high_limit = 0x7FFF,
+		.low_limit = 0,
 	};
-	// Initialize PCNT unit
-	pcnt_unit_config(&pcnt_config);
-	rtc_gpio_deinit(P_AC);
-	gpio_set_pull_mode(P_AC, GPIO_FLOATING);
-	// Configure and enable the input filter
-	pcnt_set_filter_value(PCNT_UNIT_0, 1023);
-	pcnt_filter_enable(PCNT_UNIT_0);
-	// Initialize PCNT's counter
-	pcnt_counter_pause(PCNT_UNIT_0);
-	pcnt_counter_clear(PCNT_UNIT_0);
-	// Everything is set up, now go to counting
-	pcnt_counter_resume(PCNT_UNIT_0);
+	ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+	pcnt_chan_config_t chan_config = {
+		.edge_gpio_num = P_AC,
+		.level_gpio_num = -1,
+	};
+	pcnt_channel_handle_t pcnt_chan = NULL;
+	ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_config, &pcnt_chan));
+
+	// decrease the counter on rising edge
+	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
+	// ignore control signal
+	ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP));
+
+	pcnt_glitch_filter_config_t filter_config = {
+		.max_glitch_ns = 100000,
+	};
+	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
+
+	ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+
+	ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+
+	// pcnt_config_t pcnt_config = {
+	// 	// Set PCNT input signal and control GPIOs
+	// 	.pulse_gpio_num = P_AC,
+	// 	.ctrl_gpio_num = PCNT_PIN_NOT_USED,
+	// 	// What to do when control input is low or high?
+	// 	.lctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if low
+	// 	.hctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if high
+	// 	// What to do on the positive or negative edge of pulse input?
+	// 	.pos_mode = PCNT_COUNT_INC,  // Count up on the positive edge
+	// 	.neg_mode = PCNT_COUNT_DIS,  // Keep the counter value on the negative edge
+	// 	.counter_h_lim = 0x7FFF,
+	// 	.counter_l_lim = 0,
+	// 	.unit = PCNT_UNIT_0,
+	// 	.channel = PCNT_CHANNEL_0,
+	// };
+	// // Initialize PCNT unit
+	// pcnt_unit_config(&pcnt_config);
+	// rtc_gpio_deinit(P_AC);
+	// gpio_set_pull_mode(P_AC, GPIO_FLOATING);
+	// // Configure and enable the input filter
+	// pcnt_set_filter_value(PCNT_UNIT_0, 1023);
+	// pcnt_filter_enable(PCNT_UNIT_0);
+	// // Initialize PCNT's counter
+	// pcnt_counter_pause(PCNT_UNIT_0);
+	// pcnt_counter_clear(PCNT_UNIT_0);
+	// // Everything is set up, now go to counting
+	// pcnt_counter_resume(PCNT_UNIT_0);
 }
 
 // Moving average over 2**MA_WIDTH values
@@ -127,11 +155,11 @@ unsigned counter_read()
 {
 	int diffCnt=0;
 	unsigned diffCnt_avg=0;
-	static int16_t lastCnt = 0;
+	static int lastCnt = 0;
 	// static unsigned ts_ = 0;
 	// unsigned ts = xTaskGetTickCount();
-	int16_t pCnt = 0;
-	if(pcnt_get_counter_value(PCNT_UNIT_0, &pCnt) != ESP_OK) {
+	int pCnt = 0;
+	if(pcnt_unit_get_count(pcnt_unit, &pCnt) != ESP_OK) {
 		log_e("Failed reading counter :(");
 		return 0;
 	}
@@ -178,7 +206,8 @@ static void touch_init()
 	// Arduino API is broken, use IDF one
 	touch_pad_init();
 	touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V5);
-	touch_pad_set_meas_time(0x3000, 0x3000);
+	touch_pad_set_measurement_interval(0x3000);
+	touch_pad_set_measurement_clock_cycles(0x3000);
 	for (int i=0; i<N_PINS; i++) {
 		touch_pad_config(tPins[i], 0);
 		touch_pad_read(tPins[i], &tinit[i]);
@@ -203,14 +232,15 @@ void velogen_sleep(bool isReboot)
 	gpio_set_level(P_DYN, 0);
 	gpio_set_level(P_5V, 0);
 
-	led_strip_off();
+	ws2812_off();
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
 	touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
 	// Set reference voltage for charging/discharging
 	touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V5);
-	touch_pad_set_meas_time(0xFFFF, 0x3000);
+	touch_pad_set_measurement_interval(0xFFFF);
+	touch_pad_set_measurement_clock_cycles(0x3000);
 	//init RTC IO and mode for touch pad.
 	for (int i=0; i<N_PINS; i++) {
 		touch_pad_config(tPins[i], tinit[i] - touch_threshold);
@@ -305,8 +335,8 @@ void velogen_init()
 	cache_init();  // open / create cache file on SPIFFS
 
 	// init led strip last, so power can stabilize
-	initSPIws2812();
-	g_intensity = jGetD(s, "strip_intensity", 0.25);
+	ws2812_init();
+	// g_intensity = jGetD(s, "strip_intensity", 0.25);
 }
 
 // main loop, called precisely every 50 ms
@@ -340,7 +370,7 @@ void velogen_loop()
 	if ((curTs - ts_sleep) > sleepTimeout)
 		velogen_sleep(false);
 
-	led_strip_animate();
+	ws2812_animate();
 
 	// we stopped, try to connect to wifi after 10s
 	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {

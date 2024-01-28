@@ -4,6 +4,7 @@
 
 // ESP_IDF is too verbose
 #include "esp_log.h"
+#include <stdbool.h>
 #define E(x) ESP_ERROR_CHECK_WITHOUT_ABORT(x)
 #define log_e(format, ...) ESP_LOGE(T, format, ##__VA_ARGS__)
 #define log_w(format, ...) ESP_LOGW(T, format, ##__VA_ARGS__)
@@ -23,7 +24,7 @@
 #define P_EN2 GPIO_NUM_36  // Empty
 
 #define CYCLE_MS 50
-#define N_LEDS 50  // 17           // Length of the LED strip
+#define N_LEDS 6  // 17           // Length of the LED strip
 
 extern unsigned g_wheelCnt;  // accumulated wheel pulses since power up
 extern int g_speed;  // current speed [km * 10 / h]
