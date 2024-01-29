@@ -156,34 +156,35 @@ void cache_init()
 
 	load_ptrs();
 
+	// Disable file buffer for now, until we fixed the performance issue
 	// open buffer file
-	f_buf = fopen(FILE_BUF, "r+");
-	if (!f_buf) {
-		log_w("%s: %s, creating a fresh one ...", FILE_BUF, strerror(errno));
-		f_buf = fopen(FILE_BUF, "w");
-		fclose(f_buf);
-		f_buf = fopen(FILE_BUF, "r+");
-		block_first = 0;
-		block_N = 0;
-	}
-	if (!f_buf) {
-		log_e("Didn't work, giving up :( %s", strerror(errno));
-		return;
-	}
+	// f_buf = fopen(FILE_BUF, "r+");
+	// if (!f_buf) {
+	// 	log_w("%s: %s, creating a fresh one ...", FILE_BUF, strerror(errno));
+	// 	f_buf = fopen(FILE_BUF, "w");
+	// 	fclose(f_buf);
+	// 	f_buf = fopen(FILE_BUF, "r+");
+	// 	block_first = 0;
+	// 	block_N = 0;
+	// }
+	// if (!f_buf) {
+	// 	log_e("Didn't work, giving up :( %s", strerror(errno));
+	// 	return;
+	// }
 
 	// avoid seeking beyond end of file, might need to write some dummy
 	// bytes to get the file-size to match up with write pointer
 	// https://github.com/pellepl/spiffs/wiki/Using-spiffs#seeking-in-a-file
-	fseek(f_buf, 0, SEEK_END);
-	unsigned fSize = ftell(f_buf);
-	log_i("fSize = %d", fSize);
-	unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
-	int lostBytes = wPtr * BLOCK_SIZE - fSize;
-	if (lostBytes > 0) {
-		log_w("appending %d dummy bytes", lostBytes);
-		while (lostBytes-- > 0)
-			fputc('\0', f_buf);
-	}
+	// fseek(f_buf, 0, SEEK_END);
+	// unsigned fSize = ftell(f_buf);
+	// log_i("fSize = %d", fSize);
+	// unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
+	// int lostBytes = wPtr * BLOCK_SIZE - fSize;
+	// if (lostBytes > 0) {
+	// 	log_w("appending %d dummy bytes", lostBytes);
+	// 	while (lostBytes-- > 0)
+	// 		fputc('\0', f_buf);
+	// }
 }
 
 

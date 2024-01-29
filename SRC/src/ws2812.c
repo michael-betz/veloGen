@@ -1,126 +1,58 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "driver/rmt_tx.h"
-#include "led_strip_encoder.h"
+#include "led_strip.h"
 #include "velo.h"
 #include "ws2812.h"
 
-#define RMT_LED_STRIP_GPIO_NUM P_EN0
-#define RMT_LED_STRIP_RESOLUTION_HZ 10000000
-
 static const char *TAG = "ws2812";
 
-static uint8_t led_strip_pixels[N_LEDS * 3];
-
-rmt_encoder_handle_t led_encoder = NULL;
-rmt_channel_handle_t led_chan = NULL;
-
-/**
- * @brief Simple helper function, converting HSV color space to RGB color space
- *
- * Wiki: https://en.wikipedia.org/wiki/HSL_and_HSV
- *
- */
-void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
-{
-    h %= 360; // h -> [0,360]
-    uint32_t rgb_max = v * 2.55f;
-    uint32_t rgb_min = rgb_max * (100 - s) / 100.0f;
-
-    uint32_t i = h / 60;
-    uint32_t diff = h % 60;
-
-    // RGB adjustment amount by hue
-    uint32_t rgb_adj = (rgb_max - rgb_min) * diff / 60;
-
-    switch (i) {
-    case 0:
-        *r = rgb_max;
-        *g = rgb_min + rgb_adj;
-        *b = rgb_min;
-        break;
-    case 1:
-        *r = rgb_max - rgb_adj;
-        *g = rgb_max;
-        *b = rgb_min;
-        break;
-    case 2:
-        *r = rgb_min;
-        *g = rgb_max;
-        *b = rgb_min + rgb_adj;
-        break;
-    case 3:
-        *r = rgb_min;
-        *g = rgb_max - rgb_adj;
-        *b = rgb_max;
-        break;
-    case 4:
-        *r = rgb_min + rgb_adj;
-        *g = rgb_min;
-        *b = rgb_max;
-        break;
-    default:
-        *r = rgb_max;
-        *g = rgb_min;
-        *b = rgb_max - rgb_adj;
-        break;
-    }
-}
-
-static void ws2812_update(void)
-{
-    rmt_transmit_config_t tx_config = {
-        .loop_count = 0, // no transfer loop
-    };
-    // Flush RGB values to LEDs
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-}
+led_strip_handle_t led_strip;
 
 void ws2812_off()
 {
-    memset(led_strip_pixels, 0, 3 * N_LEDS);
-    ws2812_update();
+    ESP_ERROR_CHECK(led_strip_clear(led_strip));
 }
 
 void ws2812_init(void)
 {
-    // uint32_t red = 0;
-    // uint32_t green = 0;
-    // uint32_t blue = 0;
-    // uint16_t hue = 0;
-    // uint16_t start_rgb = 0;
-
-    ESP_LOGI(TAG, "Create RMT TX channel");
-    rmt_tx_channel_config_t tx_chan_config = {
-        .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
-        .gpio_num = RMT_LED_STRIP_GPIO_NUM,
-        .mem_block_symbols = 64, // increase the block size can make the LED less flickering
-        .resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ,
-        .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
+    // LED strip general initialization, according to your led board design
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = P_EN0,   // The GPIO that connected to the LED strip's data line
+        .max_leds = N_LEDS,        // The number of LEDs in the strip,
+        .led_pixel_format = LED_PIXEL_FORMAT_GRB, // Pixel format of your LED strip
+        .led_model = LED_MODEL_WS2812,            // LED strip model
+        .flags.invert_out = false,                // whether to invert the output signal
     };
-    ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));
 
-    ESP_LOGI(TAG, "Install led strip encoder");
-    led_strip_encoder_config_t encoder_config = {
-        .resolution = RMT_LED_STRIP_RESOLUTION_HZ,
+    // LED strip backend configuration: SPI
+    led_strip_spi_config_t spi_config = {
+        .clk_src = SPI_CLK_SRC_DEFAULT, // different clock source can lead to different power consumption
+        .flags.with_dma = true,         // Using DMA can improve performance and help drive more LEDs
+        .spi_bus = SPI2_HOST,           // SPI bus ID
     };
-    ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
 
-    ESP_LOGI(TAG, "Enable RMT TX channel");
-    ESP_ERROR_CHECK(rmt_enable(led_chan));
+    // LED Strip object handle
+    ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
+    ESP_LOGI(TAG, "Created LED strip object with SPI backend");
+    ws2812_off();
 }
 
-void ws2812_animate()
+void ws2812_animate(uint8_t intensity)
 {
     static int tick = 0;
-    memset(led_strip_pixels, tick, N_LEDS * 3);
-    ws2812_update();
+
+    for (int i = 0; i < N_LEDS; i++) {
+        led_strip_set_pixel_hsv(
+            led_strip,
+            i,
+            ((i * 5 + tick) % 100 + 270) % 360,
+            0xFF,
+            intensity
+        );
+        // ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 0xFF, 0, 0));
+    }
+    led_strip_refresh(led_strip);
+    tick++;
 }

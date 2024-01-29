@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include "driver/rmt_encoder.h"
+#include "led_strip_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,7 +17,8 @@ extern "C" {
  * @brief Type of led strip encoder configuration
  */
 typedef struct {
-    uint32_t resolution; /*!< Encoder resolution, in Hz */
+    uint32_t resolution;   /*!< Encoder resolution, in Hz */
+    led_model_t led_model; /*!< LED model */
 } led_strip_encoder_config_t;
 
 /**

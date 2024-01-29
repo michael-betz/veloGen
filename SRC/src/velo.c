@@ -77,7 +77,7 @@ static void counter_init()
 
 	pcnt_unit_config_t unit_config = {
 		.high_limit = 0x7FFF,
-		.low_limit = 0,
+		.low_limit = -1,
 	};
 	ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
 
@@ -94,41 +94,12 @@ static void counter_init()
 	ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP));
 
 	pcnt_glitch_filter_config_t filter_config = {
-		.max_glitch_ns = 100000,
+		.max_glitch_ns = 10000,
 	};
 	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
-
 	ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-
 	ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
-
-	// pcnt_config_t pcnt_config = {
-	// 	// Set PCNT input signal and control GPIOs
-	// 	.pulse_gpio_num = P_AC,
-	// 	.ctrl_gpio_num = PCNT_PIN_NOT_USED,
-	// 	// What to do when control input is low or high?
-	// 	.lctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if low
-	// 	.hctrl_mode = PCNT_MODE_KEEP,  // Keep the primary counter mode if high
-	// 	// What to do on the positive or negative edge of pulse input?
-	// 	.pos_mode = PCNT_COUNT_INC,  // Count up on the positive edge
-	// 	.neg_mode = PCNT_COUNT_DIS,  // Keep the counter value on the negative edge
-	// 	.counter_h_lim = 0x7FFF,
-	// 	.counter_l_lim = 0,
-	// 	.unit = PCNT_UNIT_0,
-	// 	.channel = PCNT_CHANNEL_0,
-	// };
-	// // Initialize PCNT unit
-	// pcnt_unit_config(&pcnt_config);
-	// rtc_gpio_deinit(P_AC);
-	// gpio_set_pull_mode(P_AC, GPIO_FLOATING);
-	// // Configure and enable the input filter
-	// pcnt_set_filter_value(PCNT_UNIT_0, 1023);
-	// pcnt_filter_enable(PCNT_UNIT_0);
-	// // Initialize PCNT's counter
-	// pcnt_counter_pause(PCNT_UNIT_0);
-	// pcnt_counter_clear(PCNT_UNIT_0);
-	// // Everything is set up, now go to counting
-	// pcnt_counter_resume(PCNT_UNIT_0);
+	gpio_set_pull_mode(P_AC, GPIO_FLOATING);
 }
 
 // Moving average over 2**MA_WIDTH values
@@ -216,6 +187,7 @@ static void touch_init()
 
 void velogen_sleep(bool isReboot)
 {
+	ws2812_off();
 	esp_wifi_disconnect();
 	if (f_buf)
 		fclose(f_buf);
@@ -232,7 +204,6 @@ void velogen_sleep(bool isReboot)
 	gpio_set_level(P_DYN, 0);
 	gpio_set_level(P_5V, 0);
 
-	ws2812_off();
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -281,6 +252,8 @@ unsigned button_read()
 	return release;
 }
 
+static int g_intensity = 0x80;
+
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
@@ -303,7 +276,6 @@ void velogen_init()
 	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 
 	cJSON *s = getSettings();
-
 
 	// init oled
 	ssd_init();
@@ -336,7 +308,7 @@ void velogen_init()
 
 	// init led strip last, so power can stabilize
 	ws2812_init();
-	// g_intensity = jGetD(s, "strip_intensity", 0.25);
+	g_intensity = jGetI(s, "strip_intensity", 0x80);
 }
 
 // main loop, called precisely every 50 ms
@@ -370,7 +342,7 @@ void velogen_loop()
 	if ((curTs - ts_sleep) > sleepTimeout)
 		velogen_sleep(false);
 
-	ws2812_animate();
+	ws2812_animate(g_intensity);
 
 	// we stopped, try to connect to wifi after 10s
 	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {

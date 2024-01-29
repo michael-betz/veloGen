@@ -19,6 +19,19 @@
 
 static const char *T = "MAIN";
 
+static void velo_task(void *args)
+{
+	velogen_init();
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	while (true) {
+		velogen_loop();
+
+		// Run with a fixed 20 Hz cycle rate
+		vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
+	}
+	vTaskDelete(NULL);
+}
+
 void app_main()
 {
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -50,13 +63,6 @@ void app_main()
 	// Load settings.json from SPIFFS, try to create file if it doesn't exist
 	set_settings_file("/spiffs/settings.json", "/spiffs/default_settings.json");
 
-	velogen_init();
-
-	TickType_t xLastWakeTime = xTaskGetTickCount();
-	while (true) {
-		velogen_loop();
-
-		// Run with a fixed 20 Hz cycle rate
-		vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
-	}
+	// xTaskCreatePinnedToCore(velo_task, "velo_task", 4096, NULL, 1, NULL, 1);
+	velo_task(NULL);
 }
