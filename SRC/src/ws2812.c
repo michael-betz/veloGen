@@ -53,7 +53,7 @@ void ws2812_animate(uint8_t intensity)
         led_strip_set_pixel_hsv(
             led_strip,
             i,
-            triangle(i * 5 + tick, 120) + 260,
+            triangle(i * 20 + tick, 130) + 270,
             0xFF,
             intensity
         );
