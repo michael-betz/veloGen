@@ -90,3 +90,12 @@ Hard resetting via RTS pin..
   * `pio run -t upload -t monitor`
 
 You should see velogen booting up in the terminal.
+
+# Changes to add for REV2
+
+  * add 200k pulldown and 10 nF RC filter to speed sense pin
+  * add Zener diode across supply rail
+  * real buttons
+  * better connectors (waterproofing)
+  * Switchable battery power output for front light?
+  * Switchable 5 V output for WS2812
