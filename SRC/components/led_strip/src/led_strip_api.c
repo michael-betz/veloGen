@@ -27,6 +27,7 @@ esp_err_t led_strip_set_pixel_hsv(led_strip_handle_t strip, uint32_t index, uint
     uint32_t rgb_max = value;
     uint32_t rgb_min = rgb_max * (255 - saturation) / 255.0f;
 
+    hue %= 360;
     uint32_t i = hue / 60;
     uint32_t diff = hue % 60;
 

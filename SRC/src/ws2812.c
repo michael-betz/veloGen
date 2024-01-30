@@ -39,6 +39,12 @@ void ws2812_init(void)
     ws2812_off();
 }
 
+static unsigned triangle(unsigned x, unsigned x_max)
+{
+    unsigned tmp = x % (2 * x_max);
+    return tmp < x_max ? tmp : 2 * x_max - tmp;
+}
+
 void ws2812_animate(uint8_t intensity)
 {
     static int tick = 0;
@@ -47,7 +53,7 @@ void ws2812_animate(uint8_t intensity)
         led_strip_set_pixel_hsv(
             led_strip,
             i,
-            ((i * 5 + tick) % 100 + 270) % 360,
+            triangle(i * 5 + tick, 120) + 260,
             0xFF,
             intensity
         );
