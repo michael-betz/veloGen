@@ -11,6 +11,7 @@ static const char *TAG = "ws2812";
 
 led_strip_handle_t led_strip;
 static int ws2812_intensity = 0x80;
+static unsigned sparkle_thr = 0xF000;
 
 
 void ws2812_off()
@@ -45,6 +46,8 @@ void ws2812_init(void)
     ws2812_intensity = jGetI(s, "strip_intensity", 0x80);
     if (ws2812_intensity > 0xFF)
         ws2812_intensity = 0xFF;
+
+    sparkle_thr = jGetI(s, "sparkle", 0xF000);
 }
 
 static unsigned triangle(unsigned x, unsigned x_max)
@@ -53,34 +56,47 @@ static unsigned triangle(unsigned x, unsigned x_max)
     return tmp < x_max ? tmp : 2 * x_max - tmp;
 }
 
-#define SPAKLE 0xFA000000
+static void sparkle()
+{
+    for (int i = 0; i < N_LEDS; i++) {
+        if (random() < sparkle_thr) {
+            led_strip_set_pixel(led_strip, i, 0xFF, 0, 0);
+        }
+    }
+}
 
 static void ani0(int tick)
 {
     // red pulsating
-    int b_min = ws2812_intensity / 2;
-    int b = triangle(tick, b_min - 1);
-    for (int i = 0; i < N_LEDS; i++) {
-        int tmp = (random() > SPAKLE) ? 0xFF : b_min + b;
-        led_strip_set_pixel(led_strip, i, tmp, 0, 0);
-    }
+    int b = triangle(tick, ws2812_intensity);
+    for (int i = 0; i < N_LEDS; i++)
+        led_strip_set_pixel(led_strip, i, b, 0, 0);
 }
 
 static void ani1(int tick)
 {
     // purple / pink rainbow
-    for (int i = 0; i < N_LEDS; i++) {
-        if (random() > SPAKLE)
-            led_strip_set_pixel(led_strip, i, 0xFF, 0, 0);
-        else
-            led_strip_set_pixel_hsv(
-                led_strip,
-                i,
-                triangle(i * 20 + tick, 130) + 270,
-                0xFF,
-                ws2812_intensity
-            );
-    }
+    for (int i = 0; i < N_LEDS; i++)
+        led_strip_set_pixel_hsv(
+            led_strip,
+            i,
+            triangle(i * 20 + tick, 130) + 270,
+            0xFF,
+            ws2812_intensity
+        );
+}
+
+static void ani2(int tick)
+{
+    // rainbow
+    for (int i = 0; i < N_LEDS; i++)
+        led_strip_set_pixel_hsv(
+            led_strip,
+            i,
+            i * 20 + tick,
+            0xFF,
+            ws2812_intensity
+        );
 }
 
 void ws2812_animate()
@@ -89,8 +105,13 @@ void ws2812_animate()
 
     if (g_speed < 50)
         ani0(tick);
-    else
+    else if (g_speed < 250)
         ani1(tick);
+    else
+        ani2(tick);
+
+    if (g_speed > 50)
+        sparkle();
 
     led_strip_refresh(led_strip);
     tick++;

@@ -16,6 +16,7 @@
     "strip_intensity": 100,
     "light_off_hour_a": 9,
     "light_off_hour_b": 17,
+    "sparkle": 61440,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }
