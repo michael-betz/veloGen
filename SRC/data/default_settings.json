@@ -13,7 +13,9 @@
     "log_port": 1234,
     "oled_rotate_180": false,
     "oled_rand_invert": false,
-    "strip_intensity": 0.25,
+    "strip_intensity": 100,
+    "light_off_hour_a": 9,
+    "light_off_hour_b": 17,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
     }

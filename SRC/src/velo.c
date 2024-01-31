@@ -28,6 +28,8 @@
 static const char *T = "VELOGEN";
 
 static unsigned sleepTimeout = 30000;
+static int light_off_hour_a = -1;
+static int light_off_hour_b = -1;
 
 // Number of wheel rotations since power up
 RTC_DATA_ATTR unsigned g_wheelCnt;
@@ -255,8 +257,6 @@ unsigned button_read()
 	return release;
 }
 
-static int g_ws2812_intensity = 0x80;
-
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
@@ -306,6 +306,8 @@ void velogen_init()
 	tzset();
 
 	sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
+	light_off_hour_a = jGetI(s, "light_off_hour_a", -1);
+	light_off_hour_b = jGetI(s, "light_off_hour_b", -1);
 
 	initVeloWifi();
 	tryConnect();
@@ -313,7 +315,6 @@ void velogen_init()
 
 	// init led strip last, so power can stabilize
 	ws2812_init();
-	g_ws2812_intensity = jGetI(s, "strip_intensity", 0x80);
 }
 
 bool g_is_lights = false;
@@ -335,7 +336,7 @@ void power_house_keeping()
 	localtime_r(&now, &timeinfo);
 	int hour = timeinfo.tm_hour;
 
-	if (hour > 9 && hour < 17) {
+	if (hour > light_off_hour_a && hour < light_off_hour_b) {
 		if (g_is_lights) {
 			g_is_lights = false;
 			ws2812_off();
@@ -388,7 +389,7 @@ void velogen_loop()
 		velogen_sleep(false);
 
 	if (g_is_lights)
-		ws2812_animate(g_ws2812_intensity);
+		ws2812_animate();
 
 	// we stopped, try to connect to wifi after 10s
 	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {

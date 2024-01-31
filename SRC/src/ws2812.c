@@ -4,11 +4,14 @@
 #include "esp_log.h"
 #include "led_strip.h"
 #include "velo.h"
+#include "json_settings.h"
 #include "ws2812.h"
 
 static const char *TAG = "ws2812";
 
 led_strip_handle_t led_strip;
+static int ws2812_intensity = 0x80;
+
 
 void ws2812_off()
 {
@@ -37,6 +40,11 @@ void ws2812_init(void)
     ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
     ESP_LOGI(TAG, "Created LED strip object with SPI backend");
     ws2812_off();
+
+    cJSON *s = getSettings();
+    ws2812_intensity = jGetI(s, "strip_intensity", 0x80);
+    if (ws2812_intensity > 0xFF)
+        ws2812_intensity = 0xFF;
 }
 
 static unsigned triangle(unsigned x, unsigned x_max)
@@ -45,20 +53,45 @@ static unsigned triangle(unsigned x, unsigned x_max)
     return tmp < x_max ? tmp : 2 * x_max - tmp;
 }
 
-void ws2812_animate(uint8_t intensity)
+#define SPAKLE 0xFA000000
+
+static void ani0(int tick)
+{
+    // red pulsating
+    int b_min = ws2812_intensity / 2;
+    int b = triangle(tick, b_min - 1);
+    for (int i = 0; i < N_LEDS; i++) {
+        int tmp = (random() > SPAKLE) ? 0xFF : b_min + b;
+        led_strip_set_pixel(led_strip, i, tmp, 0, 0);
+    }
+}
+
+static void ani1(int tick)
+{
+    // purple / pink rainbow
+    for (int i = 0; i < N_LEDS; i++) {
+        if (random() > SPAKLE)
+            led_strip_set_pixel(led_strip, i, 0xFF, 0, 0);
+        else
+            led_strip_set_pixel_hsv(
+                led_strip,
+                i,
+                triangle(i * 20 + tick, 130) + 270,
+                0xFF,
+                ws2812_intensity
+            );
+    }
+}
+
+void ws2812_animate()
 {
     static int tick = 0;
 
-    for (int i = 0; i < N_LEDS; i++) {
-        led_strip_set_pixel_hsv(
-            led_strip,
-            i,
-            triangle(i * 20 + tick, 130) + 270,
-            0xFF,
-            intensity
-        );
-        // ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 0xFF, 0, 0));
-    }
+    if (g_speed < 50)
+        ani0(tick);
+    else
+        ani1(tick);
+
     led_strip_refresh(led_strip);
     tick++;
 }
