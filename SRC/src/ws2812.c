@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -68,7 +69,10 @@ static void sparkle()
 static void ani0(int tick)
 {
     // red pulsating
-    int b = triangle(tick, ws2812_intensity);
+    // int b = triangle(tick, ws2812_intensity);
+    int b = (sinf(tick / 15.0f) + 1.0f) * ws2812_intensity / 2.0f + 2;
+    if (b > 0xFF)
+        b = 0xFF;
     for (int i = 0; i < N_LEDS; i++)
         led_strip_set_pixel(led_strip, i, b, 0, 0);
 }
@@ -103,14 +107,14 @@ void ws2812_animate()
 {
     static int tick = 0;
 
-    if (g_speed < 50)
-        ani0(tick);
-    else if (g_speed < 250)
+    if (g_speed >= 350)
+        ani2(tick);
+    else if (g_speed >= 250)
         ani1(tick);
     else
-        ani2(tick);
+        ani0(tick);
 
-    if (g_speed > 50)
+    if (g_speed > 150)
         sparkle();
 
     led_strip_refresh(led_strip);
