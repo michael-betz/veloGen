@@ -204,6 +204,9 @@ void velogen_sleep(bool isReboot)
 	gpio_set_level(P_DYN, 0);
 	gpio_set_level(P_5V, 0);
 
+	// disable aux power pins
+	gpio_set_level(P_EN1, 0);
+	gpio_set_level(P_EN2, 0);
 
 	// Initialize touch pad peripheral for FSM timer mode
 	touch_pad_init();
@@ -252,15 +255,17 @@ unsigned button_read()
 	return release;
 }
 
-static int g_intensity = 0x80;
+static int g_ws2812_intensity = 0x80;
 
 void velogen_init()
 {
 	gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
 	gpio_set_direction(P_5V, GPIO_MODE_INPUT_OUTPUT);
+	gpio_set_direction(P_EN1, GPIO_MODE_INPUT_OUTPUT);
+	gpio_set_direction(P_EN2, GPIO_MODE_INPUT_OUTPUT);
 	gpio_set_direction(P_AC, GPIO_MODE_INPUT);
 	setDynamo(1);
-	gpio_set_level(P_5V, 1);
+	gpio_set_level(P_5V, 0);
 
 	counter_init();
 
@@ -308,7 +313,48 @@ void velogen_init()
 
 	// init led strip last, so power can stabilize
 	ws2812_init();
-	g_intensity = jGetI(s, "strip_intensity", 0x80);
+	g_ws2812_intensity = jGetI(s, "strip_intensity", 0x80);
+}
+
+bool g_is_lights = false;
+
+// Switch on / off the lights and dynamo
+void power_house_keeping()
+{
+	static int last_volts = -1;
+	static const int max_volts = 8500;
+
+	// crude battery protection
+	if (g_mVolts > max_volts)
+		setDynamo(0);
+	else if (g_mVolts < (max_volts - 200) && last_volts >= (max_volts - 200))
+		setDynamo(1);
+
+	time_t now = time(NULL);
+	struct tm timeinfo = {0};
+	localtime_r(&now, &timeinfo);
+	int hour = timeinfo.tm_hour;
+
+	if (hour > 9 && hour < 17) {
+		if (g_is_lights) {
+			g_is_lights = false;
+			ws2812_off();
+			gpio_set_level(P_5V, 0);
+			gpio_set_level(P_EN1, 0);
+			gpio_set_level(P_EN2, 0);
+			setStatus("Lights off!");
+		}
+	} else {
+		if (!g_is_lights) {
+			g_is_lights = true;
+			gpio_set_level(P_5V, 1);
+			gpio_set_level(P_EN1, 1);
+			gpio_set_level(P_EN2, 1);
+			setStatus("Lights ON!");
+		}
+	}
+
+	last_volts = g_mVolts;
 }
 
 // main loop, called precisely every 50 ms
@@ -323,9 +369,8 @@ void velogen_loop()
 	g_mVolts = inaV();
 	g_mAmps = inaI();
 
-	// crude battery protection
-	if (g_mVolts > 8400)
-		setDynamo(0);
+	if ((frm % 50) == 0)
+		power_house_keeping();
 
 	if (counter_read()) {
 		// If wheel was moved
@@ -342,7 +387,8 @@ void velogen_loop()
 	if ((curTs - ts_sleep) > sleepTimeout)
 		velogen_sleep(false);
 
-	ws2812_animate(g_intensity);
+	if (g_is_lights)
+		ws2812_animate(g_ws2812_intensity);
 
 	// we stopped, try to connect to wifi after 10s
 	if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
