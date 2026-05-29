@@ -1,9 +1,5 @@
 // next steps
 // * shutdown state machine (look for wifi, try upload)
-// * per trip screens
-//   * energy / charge / distance / avg speed
-// 	 * displayed at end of trip (= when stopped moving) ?
-//   * when to reset?
 // * OTA: load firmware from github release
 
 #include "esp_littlefs.h"

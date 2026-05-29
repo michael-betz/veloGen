@@ -18,6 +18,19 @@ static const char *T = "VELO_WIFI";
 extern const char ROOT_CERT[] asm("_binary_root_cert_pem_start");
 extern const char ROOT_CERT_E[] asm("_binary_root_cert_pem_end");
 
+static wifi_config_t wifi_ap_config = {
+    .ap =
+        {
+            .channel = 6,
+            .max_connection = 3,
+            .authmode = WIFI_AUTH_OPEN,
+            .pmf_cfg =
+                {
+                    .required = false,
+                },
+        },
+};
+
 bool isConnect = false;
 bool isMqttConnect = false;
 esp_mqtt_client_handle_t mqtt_c;
@@ -214,6 +227,12 @@ void tryConnect() {
     E(esp_wifi_start());
     E(esp_wifi_scan_start(NULL, false));
     // fires SYSTEM_EVENT_SCAN_DONE when done, calls scan_done() ...
+}
+
+void tryApMode() {
+    E(esp_wifi_set_mode(WIFI_MODE_AP));
+    E(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
+    ESP_LOGI(T, "started AP mode. SSID: %s", WIFI_HOST_NAME);
 }
 
 void toggle_wifi() {

@@ -40,16 +40,8 @@ int g_speed = 0;  // [km * 10 / h]
 // distance / pulse = 165769 um
 static unsigned um_p_pulse = 0;
 
-// val: -1: toggle, 0: Off, 1: On
-void setDynamo(int val) {
-    static bool isDyn = false;
-    bool isDyn_ = isDyn;
-    if (val == -1)
-        isDyn = !isDyn;
-    else
-        isDyn = val > 0;
-    gpio_set_level(P_DYN, isDyn);
-}
+// 0: Off, 1: On
+void setAuxPower(bool val) { gpio_set_level(P_AUX_PWR, val); }
 
 pcnt_unit_handle_t pcnt_unit = NULL;
 
@@ -162,7 +154,7 @@ void velogen_sleep(bool isReboot) {
 
     // Switch off OLED, shunt and dynamo
     inaOff();
-    gpio_set_level(P_DYN, 0);
+    gpio_set_level(P_AUX_PWR, 0);
     gpio_set_level(P_5V, 0);
 
     // disable aux power pins
@@ -176,12 +168,15 @@ void velogen_sleep(bool isReboot) {
 }
 
 void velogen_init() {
-    gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(P_AUX_PWR, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_5V, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_EN1, GPIO_MODE_INPUT_OUTPUT);
-    // gpio_set_direction(P_EN2, GPIO_MODE_INPUT_OUTPUT); // can be an input only :p
+    gpio_set_direction(P_EN2, GPIO_MODE_INPUT);  // can be an input only :p
     gpio_set_direction(P_AC, GPIO_MODE_INPUT);
-    setDynamo(1);
+    gpio_set_direction(P_BOOT0, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(P_BOOT0, GPIO_PULLUP_ONLY);
+
+    setAuxPower(1);
     gpio_set_level(P_5V, 0);
 
     counter_init();
@@ -219,9 +214,9 @@ void power_house_keeping() {
 
     // crude battery protection
     if (g_mVolts > max_volts)
-        setDynamo(0);
+        setAuxPower(0);
     else if (g_mVolts < (max_volts - 200) && last_volts >= (max_volts - 200))
-        setDynamo(1);
+        setAuxPower(1);
 
     time_t now = time(NULL);
     struct tm timeinfo = {0};
@@ -260,8 +255,13 @@ void velogen_loop() {
     g_mVolts = inaV();
     g_mAmps = inaI();
 
-    if ((frm % 50) == 0)
+    if ((frm % 50) == 0) {
         power_house_keeping();
+
+        if (gpio_get_level(P_BOOT0) == 0) {
+            tryApMode();
+        }
+    }
 
     if (counter_read()) {
         // If wheel was moved

@@ -8,6 +8,7 @@ extern bool isMqttConnect;
 
 void initVeloWifi();
 void tryConnect();
+void tryApMode();
 
 void toggle_wifi();
 

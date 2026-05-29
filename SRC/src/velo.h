@@ -16,12 +16,13 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 // GPIO Pin definitions
-#define P_DYN GPIO_NUM_16  // Dynamo on / off
-#define P_AC GPIO_NUM_15   // N zero crossings per rotation
-#define P_5V GPIO_NUM_17   // 5V enable
-#define P_EN0 GPIO_NUM_27  // LED string data
-#define P_EN1 GPIO_NUM_26  // Empty
-#define P_EN2 GPIO_NUM_36  // Empty
+#define P_BOOT0 GPIO_NUM_0     // The bootloader button
+#define P_AUX_PWR GPIO_NUM_16  // Auxiliary power on / off
+#define P_AC GPIO_NUM_15       // N zero crossings per rotation
+#define P_5V GPIO_NUM_17       // 5V enable
+#define P_EN0 GPIO_NUM_27      // LED string data
+#define P_EN1 GPIO_NUM_26      // Empty
+#define P_EN2 GPIO_NUM_36      // Empty
 
 #define CYCLE_MS 50
 #define N_LEDS 6  // 17           // Length of the LED strip
@@ -43,7 +44,7 @@ unsigned button_read();
 // accumulate wheel rotations in g_wheelCnt
 unsigned counter_read();
 
-// val: -1: toggle, 0: Off, 1: On
-void setDynamo(int val);
+// 0: Off, 1: On
+void setAuxPower(bool val);
 
 #endif
