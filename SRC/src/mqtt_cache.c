@@ -28,9 +28,9 @@ typedef struct {
 #define BLOCK_SIZE sizeof(t_datum)
 
 // paths for the cache and pointer file
-#define FILE_BUF "/spiffs/velo_buf.dat"
-#define FILE_PTR1 "/spiffs/velo_ptr1.dat"
-#define FILE_PTR2 "/spiffs/velo_ptr2.dat"
+#define FILE_BUF "/lfs/velo_buf.dat"
+#define FILE_PTR1 "/lfs/velo_ptr1.dat"
+#define FILE_PTR2 "/lfs/velo_ptr2.dat"
 
 // cache is a ring buffer, 0.5 MB is enough for 9 h at 1 Hz
 #define MAX_CACHE_SIZE (512 * 1024 / BLOCK_SIZE)  // [blocks]
@@ -298,7 +298,6 @@ void cache_handle() {
                 block_N -= nTX;
                 commit_ptrs();
 
-                setStatus("ACK %d / %d", initial_block_N - block_N, initial_block_N);
                 tx_state = ST_ONLINE_CA;
             }
             break;

@@ -114,7 +114,7 @@ static void scan_done(void *arg, esp_event_base_t event_base, int32_t event_id, 
         cfg.sta.pmf_cfg.capable = true;
         log_i("Looks familiar: %s", cfg.sta.ssid);
 
-        E(esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg));
+        E(esp_wifi_set_config(WIFI_IF_STA, &cfg));
         E(esp_wifi_connect());
         E(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
         E(esp_netif_set_hostname(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"),

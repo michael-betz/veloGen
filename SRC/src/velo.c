@@ -1,9 +1,9 @@
 // #include "mqtt_client.h"
 #include "velo.h"
+#include "driver/gpio.h"
 #include "driver/i2c.h"
 #include "driver/pulse_cnt.h"
 #include "driver/rtc_io.h"
-#include "driver/touch_pad.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_sleep.h"
@@ -40,7 +40,6 @@ int g_speed = 0;  // [km * 10 / h]
 // pulses / revolution = 13
 // distance / pulse = 165769 um
 static unsigned um_p_pulse = 0;
-static int touch_threshold = 0;
 
 // val: -1: toggle, 0: Off, 1: On
 void setDynamo(int val) {
@@ -51,8 +50,6 @@ void setDynamo(int val) {
     else
         isDyn = val > 0;
     gpio_set_level(P_DYN, isDyn);
-    if (isDyn != isDyn_)
-        setStatus(isDyn ? "Dyn ON!" : "Dyn off");
 }
 
 pcnt_unit_handle_t pcnt_unit = NULL;
@@ -250,7 +247,6 @@ void power_house_keeping() {
             gpio_set_level(P_5V, 0);
             gpio_set_level(P_EN1, 0);
             gpio_set_level(P_EN2, 0);
-            setStatus("Lights off!");
         }
     } else {
         if (!g_is_lights) {
@@ -258,7 +254,6 @@ void power_house_keeping() {
             gpio_set_level(P_5V, 1);
             gpio_set_level(P_EN1, 1);
             gpio_set_level(P_EN2, 1);
-            setStatus("Lights ON!");
         }
     }
 

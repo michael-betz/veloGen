@@ -6,6 +6,7 @@
 //   * when to reset?
 // * OTA: load firmware from github release
 
+#include "esp_littlefs.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_system.h"
@@ -48,15 +49,33 @@ void app_main() {
              esp_get_free_heap_size(),
              esp_get_minimum_free_heap_size());
 
-    // Mount spiffs for *.html and defaults.json
-    esp_vfs_spiffs_conf_t conf = {.base_path = "/spiffs",
-                                  .partition_label = NULL,
-                                  .max_files = 4,
-                                  .format_if_mount_failed = true};
-    esp_vfs_spiffs_register(&conf);
+    // Mount FS for *.html and defaults.json
+    esp_vfs_littlefs_conf_t conf = {
+        .base_path = "/lfs",
+        .partition_label = "filesys",
+        .format_if_mount_failed = true,
+        .dont_mount = false,
+    };
+
+    // Use settings defined above to initialize and mount LittleFS filesystem.
+    // Note: esp_vfs_littlefs_register is an all-in-one convenience function.
+    esp_err_t ret = esp_vfs_littlefs_register(&conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(T, "Failed to initialize LittleFS (%s)", esp_err_to_name(ret));
+        return;
+    }
+
+    size_t total = 0, used = 0;
+    ret = esp_littlefs_info(conf.partition_label, &total, &used);
+    if (ret != ESP_OK) {
+        ESP_LOGE(T, "Failed to get LittleFS partition information (%s)", esp_err_to_name(ret));
+        esp_littlefs_format(conf.partition_label);
+    } else {
+        ESP_LOGI(T, "Partition size: total: %d, used: %d", total, used);
+    }
 
     // Load settings.json from SPIFFS, try to create file if it doesn't exist
-    set_settings_file("/spiffs/settings.json", "/spiffs/default_settings.json");
+    set_settings_file("/lfs/settings.json", "/lfs/default_settings.json");
 
     // xTaskCreatePinnedToCore(velo_task, "velo_task", 4096, NULL, 1, NULL, 1);
     velo_task(NULL);
