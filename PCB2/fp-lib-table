@@ -1,3 +1,5 @@
 (fp_lib_table
-  (lib (name myStuff)(type KiCad)(uri /home/michael/grive/kicad_wsp/lib/myStuff.pretty)(options "")(descr ""))
+  (version 7)
+  (lib (name "myStuff")(type "KiCad")(uri "/home/michael/grive/kicad_wsp/lib/myStuff.pretty")(options "")(descr ""))
+  (lib (name "crtdriver2")(type "KiCad")(uri "${KIPRJMOD}/crtdriver2.pretty")(options "")(descr ""))
 )

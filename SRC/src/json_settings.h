@@ -1,8 +1,8 @@
 #ifndef JSON_SETTINGS_H
 #define JSON_SETTINGS_H
 
+#include <cJSON.h>
 #include <stdbool.h>
-#include "cJSON.h"
 
 // set the .json file with settings and a fall-back defaults_file
 // which will be copied over if not NULL

@@ -1,0 +1,4 @@
+dependencies:
+  # idf: ">=5.0"
+  espressif/cjson: ">=1.7.19"
+  espressif/mqtt: "*"

@@ -1,3 +1,11 @@
+# light branch
+  * No OLED display support
+  * No touch button support
+  * velogen PCB is in a waterproof box
+  - [ ] Support for RGB LED back-light
+  - [ ] Support for GPS module
+  - [ ] Support for remote server
+
 # veloGen
 Minimalist bike computer and hub dynamo power manager.
 
