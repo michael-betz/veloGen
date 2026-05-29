@@ -19,7 +19,7 @@ void ws2812_off() { ESP_ERROR_CHECK(led_strip_clear(led_strip)); }
 void ws2812_init(void) {
     // LED strip general initialization, according to your led board design
     led_strip_config_t strip_config = {
-        .strip_gpio_num = P_EN0,  // The GPIO that connected to the LED strip's data line
+        .strip_gpio_num = P_EN1,  // The GPIO that connected to the LED strip's data line
         .max_leds = N_LEDS,       // The number of LEDs in the strip,
         .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
         .led_model = LED_MODEL_WS2812,  // LED strip model
