@@ -53,7 +53,7 @@ void app_main() {
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "/lfs",
         .partition_label = "filesys",
-        .format_if_mount_failed = true,
+        .format_if_mount_failed = false,
         .dont_mount = false,
     };
 

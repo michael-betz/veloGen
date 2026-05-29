@@ -1,7 +1,6 @@
 // #include "mqtt_client.h"
 #include "velo.h"
 #include "driver/gpio.h"
-#include "driver/i2c.h"
 #include "driver/pulse_cnt.h"
 #include "driver/rtc_io.h"
 #include "esp_log.h"
@@ -180,23 +179,12 @@ void velogen_init() {
     gpio_set_direction(P_DYN, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_5V, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_EN1, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(P_EN2, GPIO_MODE_INPUT_OUTPUT);
+    // gpio_set_direction(P_EN2, GPIO_MODE_INPUT_OUTPUT); // can be an input only :p
     gpio_set_direction(P_AC, GPIO_MODE_INPUT);
     setDynamo(1);
     gpio_set_level(P_5V, 0);
 
     counter_init();
-
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = 12,
-        .scl_io_num = 14,
-        .sda_pullup_en = false,
-        .scl_pullup_en = false,
-        .master.clk_speed = 800000  // overclocked x2
-    };
-    i2c_param_config(I2C_NUM_0, &conf);
-    i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 
     cJSON *s = getSettings();
 
