@@ -2,31 +2,26 @@
 #include "velo.h"
 #include "driver/gpio.h"
 #include "driver/pulse_cnt.h"
-#include "driver/rtc_io.h"
 #include "esp_log.h"
-#include "esp_random.h"
 #include "esp_sleep.h"
-#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "ina219.h"
 #include "json_settings.h"
+#include "main.h"
 #include "mqtt_cache.h"
 #include "mqtt_client.h"
+#include "nmea_parser.h"
 #include "static_ws.h"
 #include "time.h"
-#include "velo_wifi.h"
+#include "wifi.h"
 #include "ws2812.h"
-#include <errno.h>
-#include <math.h>
-#include <string.h>
+#include <time.h>
 
 #define N_PINS 4
 
 static const char *T = "VELOGEN";
 
 static unsigned sleepTimeout = 30000;
-static int light_off_hour_a = -1;
-static int light_off_hour_b = -1;
 
 // Number of wheel rotations since power up
 RTC_DATA_ATTR unsigned g_wheelCnt;
@@ -44,6 +39,7 @@ static unsigned um_p_pulse = 0;
 void setAuxPower(bool val) { gpio_set_level(P_AUX_PWR, val); }
 
 pcnt_unit_handle_t pcnt_unit = NULL;
+nmea_parser_handle_t nmea_hdl = NULL;
 
 // Pulse counter to count wheel rotations
 static void counter_init() {
@@ -145,6 +141,7 @@ void velogen_sleep(bool isReboot) {
     esp_wifi_disconnect();
     if (f_buf)
         fclose(f_buf);
+    gps_sleep(nmea_hdl);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     if (isReboot) {
@@ -152,24 +149,65 @@ void velogen_sleep(bool isReboot) {
         esp_restart();
     }
 
-    // Switch off OLED, shunt and dynamo
+    // Switch off everything that my drain power
     inaOff();
     gpio_set_level(P_AUX_PWR, 0);
-    gpio_set_level(P_5V, 0);
-
-    // disable aux power pins
-    gpio_set_level(P_EN1, 0);
-    gpio_set_level(P_EN2, 0);
 
     // enable wheel pulse as wakeup source
-    esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
+    // esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
+    esp_sleep_enable_ext1_wakeup((1 << P_BOOT0), ESP_EXT1_WAKEUP_ALL_LOW);
 
     esp_deep_sleep_start();  // ZzzZZZzzzZZ
 }
 
+static void gps_event_handler(void *event_handler_arg,
+                              esp_event_base_t event_base,
+                              int32_t event_id,
+                              void *event_data) {
+    gps_t *gps = NULL;
+    switch (event_id) {
+    case GPS_UPDATE:
+        gps = (gps_t *)event_data;
+        /* print information parsed from GPS statements */
+        ESP_LOGI(T,
+                 "%2d/%2d, %d/%d/%d %2d:%2d:%2d, %.05f°N, %.05f°E, %.02f m, +- %.02f m",
+                 gps->sats_in_use,
+                 gps->sats_in_view,
+                 gps->date.year + 2000,
+                 gps->date.month,
+                 gps->date.day,
+                 gps->tim.hour,
+                 gps->tim.minute,
+                 gps->tim.second,
+                 gps->latitude,
+                 gps->longitude,
+                 gps->altitude,
+                 gps->dop_p);
+        break;
+    case GPS_UNKNOWN:
+        ESP_LOGW(T, "Unknown statement: %s", (char *)event_data);
+        break;
+    default:
+        break;
+    }
+}
+
+void gps_init() {
+    nmea_parser_config_t config = {.uart = {.uart_port = UART_NUM_1,
+                                            .rx_pin = P_GPS_RX,
+                                            .tx_pin = P_GPS_TX,
+                                            .baud_rate = 9600,
+                                            .data_bits = UART_DATA_8_BITS,
+                                            .parity = UART_PARITY_DISABLE,
+                                            .stop_bits = UART_STOP_BITS_1,
+                                            .event_queue_size = 16}};
+    nmea_hdl = nmea_parser_init(&config);
+    nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
+    gps_wake(nmea_hdl);
+}
+
 void velogen_init() {
     gpio_set_direction(P_AUX_PWR, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(P_5V, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_EN1, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(P_EN2, GPIO_MODE_INPUT);  // can be an input only :p
     gpio_set_direction(P_AC, GPIO_MODE_INPUT);
@@ -177,7 +215,6 @@ void velogen_init() {
     gpio_set_pull_mode(P_BOOT0, GPIO_PULLUP_ONLY);
 
     setAuxPower(1);
-    gpio_set_level(P_5V, 0);
 
     counter_init();
 
@@ -189,58 +226,16 @@ void velogen_init() {
     inaPga(0);
     inaAvg(7);
 
-    // Set the timezone
-    setenv("TZ", jGetS(s, "timezone", "PST8PDT"), 1);
-    tzset();
-
     sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
-    light_off_hour_a = jGetI(s, "light_off_hour_a", -1);
-    light_off_hour_b = jGetI(s, "light_off_hour_b", -1);
 
-    initVeloWifi();
-    tryConnect();
+    gps_init();
+    initWifi();
+    startWebServer();
+    mqtt_init();
     cache_init();  // open / create cache file on SPIFFS
 
     // init led strip last, so power can stabilize
     ws2812_init();
-}
-
-bool g_is_lights = false;
-
-// Switch on / off the lights and dynamo
-void power_house_keeping() {
-    static int last_volts = -1;
-    static const int max_volts = 8500;
-
-    // crude battery protection
-    if (g_mVolts > max_volts)
-        setAuxPower(0);
-    else if (g_mVolts < (max_volts - 200) && last_volts >= (max_volts - 200))
-        setAuxPower(1);
-
-    time_t now = time(NULL);
-    struct tm timeinfo = {0};
-    localtime_r(&now, &timeinfo);
-    int hour = timeinfo.tm_hour;
-
-    if (hour > light_off_hour_a && hour < light_off_hour_b) {
-        if (g_is_lights) {
-            g_is_lights = false;
-            ws2812_off();
-            gpio_set_level(P_5V, 0);
-            gpio_set_level(P_EN1, 0);
-            gpio_set_level(P_EN2, 0);
-        }
-    } else {
-        if (!g_is_lights) {
-            g_is_lights = true;
-            gpio_set_level(P_5V, 1);
-            gpio_set_level(P_EN1, 1);
-            gpio_set_level(P_EN2, 1);
-        }
-    }
-
-    last_volts = g_mVolts;
 }
 
 // main loop, called precisely every 50 ms
@@ -255,35 +250,44 @@ void velogen_loop() {
     g_mVolts = inaV();
     g_mAmps = inaI();
 
-    if ((frm % 50) == 0) {
-        power_house_keeping();
-
-        if (gpio_get_level(P_BOOT0) == 0) {
-            tryApMode();
-        }
-    }
-
     if (counter_read()) {
         // If wheel was moved
         ts_sleep = curTs;
         ts_con = curTs;
     }
 
+    if ((frm % 100) == 0) {
+        ESP_LOGD(T, "%d mV,  %d mA, %d cnt", g_mVolts, g_mAmps, g_wheelCnt);
+
+        // we stopped, try to connect to wifi after 10s
+        if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) &&
+            wifi_state == WIFI_NOT_CONNECTED) {
+            tryJsonConnect();
+            // don't try to re-connect in the next 5 minutes
+            ts_con += sleepTimeout;
+        }
+
+        if (gpio_get_level(P_BOOT0) == 0) {
+            gps_sleep(nmea_hdl);
+
+            // if (wifi_state == WIFI_AP_MODE)
+            //     tryJsonConnect();
+            // else
+            //     tryApMode();
+        }
+
+        if ((curTs - ts_sleep) > sleepTimeout)
+            velogen_sleep(false);
+    }
+
     // 20 Hz max.
     cache_handle();
 
-    if ((curTs - ts_sleep) > sleepTimeout)
-        velogen_sleep(false);
-
-    if (g_is_lights)
+    // TODO: better battery protection (shunt R maybe?)
+    if (g_mVolts > 8400)
+        ws2812_white();
+    else
         ws2812_animate();
-
-    // we stopped, try to connect to wifi after 10s
-    if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) && !isConnect) {
-        tryConnect();
-        // don't try to re-connect in the next 5 minutes
-        ts_con += sleepTimeout;
-    }
 
     frm++;
 }

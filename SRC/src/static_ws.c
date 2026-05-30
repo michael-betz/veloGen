@@ -3,21 +3,22 @@
 // https://github.com/espressif/esp-idf/blob/master/examples/protocols/http_server/file_serving/main/file_server.c
 // used for editing settings.json in the browser
 
+#include "static_ws.h"
+#include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
-#include "velo.h"
+#include "main.h"
 #include <stdio.h>
+#include <string.h>
+#include <sys/param.h>
 
 static const char *T = "STATIC_WS";
 
 static httpd_handle_t server = NULL;
 
-#define FILE_PATH_MAX (ESP_VFS_PATH_MAX + CONFIG_SPIFFS_OBJ_NAME_LEN)
-#define BASE_PATH "/spiffs"
-#define SCRATCH_BUFSIZE 8192
-
-char scratch[SCRATCH_BUFSIZE];
+#define FILE_PATH_MAX 32
+#define SCRATCH_BUFSIZE 128  // Dynamically allocated
 
 #define IS_FILE_EXT(filename, ext)                                                                 \
     (strcasecmp(&filename[strlen(filename) - sizeof(ext) + 1], ext) == 0)
@@ -54,7 +55,7 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filena
 /* Copies the full path into destination buffer and returns
  * pointer to path (skipping the preceding base path) */
 static const char *get_path_from_uri(char *dest, const char *uri, size_t destsize) {
-    const size_t base_pathlen = strlen(BASE_PATH);
+    const size_t base_pathlen = strlen(F_PREFIX);
     size_t pathlen = strlen(uri);
 
     const char *quest = strchr(uri, '?');
@@ -72,7 +73,7 @@ static const char *get_path_from_uri(char *dest, const char *uri, size_t destsiz
     }
 
     /* Construct full path (base + path) */
-    strcpy(dest, BASE_PATH);
+    strcpy(dest, F_PREFIX);
     strlcpy(dest + base_pathlen, uri, pathlen + 1);
 
     /* Return pointer to path, skipping the base */
@@ -87,108 +88,7 @@ static esp_err_t index_html_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// reboot
-static esp_err_t reboot_get_handler(httpd_req_t *req) {
-    httpd_resp_set_status(req, HTTPD_200);
-    httpd_resp_sendstr(req, "Rebooting ...");
-    velogen_sleep(true);
-    return ESP_OK;
-}
-
-// Handler to upload a file onto the server
-static esp_err_t upload_post_handler(httpd_req_t *req) {
-    char filepath[FILE_PATH_MAX];
-    FILE *fd = NULL;
-
-    const char *filename = get_path_from_uri(filepath, req->uri, sizeof(filepath));
-    if (!filename) {
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
-        return ESP_FAIL;
-    }
-
-    /* Filename cannot have a trailing '/' */
-    if (filename[strlen(filename) - 1] == '/') {
-        ESP_LOGE(T, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
-        return ESP_FAIL;
-    }
-
-    /* File cannot be larger than a limit */
-    if (req->content_len > 1024 * 100) {  // 100 kB limit for now
-        ESP_LOGE(T, "File too large : %d bytes", req->content_len);
-        /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File size must be less than 100 kB");
-        return ESP_FAIL;
-    }
-
-    fd = fopen(filepath, "w");
-    if (!fd) {
-        ESP_LOGE(T, "Failed to create file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
-        return ESP_FAIL;
-    }
-
-    ESP_LOGI(T, "Receiving file : %s...", filename);
-
-    /* Retrieve the pointer to scratch buffer for temporary storage */
-    char *buf = scratch;
-    int received;
-
-    /* Content length of the request gives
-     * the size of the file being uploaded */
-    int remaining = req->content_len;
-
-    while (remaining > 0) {
-
-        ESP_LOGI(T, "Remaining size : %d", remaining);
-        /* Receive the file part by part into a buffer */
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
-            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                /* Retry if timeout occurred */
-                continue;
-            }
-
-            /* In case of unrecoverable error,
-             * close and delete the unfinished file*/
-            fclose(fd);
-            unlink(filepath);
-
-            ESP_LOGE(T, "File reception failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file");
-            return ESP_FAIL;
-        }
-
-        /* Write buffer content to file on storage */
-        if (received && (received != fwrite(buf, 1, received, fd))) {
-            /* Couldn't write everything to file!
-             * Storage may be full? */
-            fclose(fd);
-            unlink(filepath);
-
-            ESP_LOGE(T, "File write failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(
-                req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage");
-            return ESP_FAIL;
-        }
-
-        /* Keep track of remaining size of
-         * the file left to be uploaded */
-        remaining -= received;
-    }
-
-    /* Close file upon upload completion */
-    fclose(fd);
-    ESP_LOGI(T, "File reception complete");
-    httpd_resp_set_status(req, HTTPD_200);
-    httpd_resp_send(req, NULL, 0);  // Response body can be empty
-    return ESP_OK;
-}
-
-// Handler to download a file kept on SPIFFS
+// Handler to download a file kept on the FS
 static esp_err_t download_get_handler(httpd_req_t *req) {
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
@@ -227,7 +127,10 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
     set_content_type_from_file(req, filename);
 
     /* Retrieve the pointer to scratch buffer for temporary storage */
-    char *chunk = scratch;
+    char *chunk = malloc(SCRATCH_BUFSIZE);
+    if (!chunk)
+        return ESP_FAIL;
+
     size_t chunksize;
     do {
         /* Read file in chunks into the scratch buffer */
@@ -242,6 +145,7 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
                 httpd_resp_sendstr_chunk(req, NULL);
                 /* Respond with 500 Internal Server Error */
                 httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
+                free(chunk);
                 return ESP_FAIL;
             }
         }
@@ -251,6 +155,7 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
 
     /* Close file after sending complete */
     fclose(fd);
+    free(chunk);
     // ESP_LOGI(T, "File sending complete");
 
     /* Respond with an empty chunk to signal HTTP response completion */
@@ -258,40 +163,48 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// This handles websocket traffic
-// unfortunately needs ESP-IDF 4.2.x which is not yet av. on platformio
-// you can try to cheat and use the ./update_http_server.sh hack
-// static esp_err_t ws_handler(httpd_req_t *req)
-// {
-// 	uint8_t buf[128] = { 0 };
-// 	httpd_ws_frame_t ws_pkt;
-// 	memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-// 	ws_pkt.payload = buf;
-// 	ws_pkt.type = HTTPD_WS_TYPE_TEXT;
-// 	esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 128);
-// 	if (ret != ESP_OK) {
-// 		ESP_LOGE(T, "httpd_ws_recv_frame failed with %d", ret);
-// 		return ret;
-// 	}
-// 	ESP_LOGI(T, "Got packet with message: %s", ws_pkt.payload);
-// 	ESP_LOGI(T, "Packet type: %d", ws_pkt.type);
-// 	// if (ws_pkt.type == HTTPD_WS_TYPE_TEXT &&
-// 	//     strcmp((char*)ws_pkt.payload,"Trigger async") == 0) {
-// 	//     return trigger_async_send(req->handle, req);
-// 	// }
+esp_err_t __attribute__((weak)) ws_callback(httpd_req_t *req, httpd_ws_frame_t *frame) {
+    ESP_LOGI(T, "unhandled ws_callback");
+    return ESP_OK;
+}
 
-// 	ret = httpd_ws_send_frame(req, &ws_pkt);
-// 	if (ret != ESP_OK) {
-// 		ESP_LOGE(T, "httpd_ws_send_frame failed with %d", ret);
-// 	}
-// 	return ret;
-// }
+// This handles websocket traffic, needs ESP-IDF > 4.2.x
+static esp_err_t ws_handler(httpd_req_t *req) {
+    if (req->method == HTTP_GET) {
+        ESP_LOGI(T, "WS handshake");
+        return ESP_OK;
+    }
+
+    // Copy the received payload into local buffer
+    httpd_ws_frame_t wsf = {0};
+    esp_err_t ret = httpd_ws_recv_frame(req, &wsf, 0);
+    if (ret != ESP_OK)
+        return ret;
+
+    wsf.payload = malloc(wsf.len);
+    if (!wsf.payload)
+        return ESP_ERR_NO_MEM;
+
+    ret = httpd_ws_recv_frame(req, &wsf, wsf.len);
+    if (ret != ESP_OK) {
+        free(wsf.payload);
+        return ret;
+    }
+
+    // hand over data to the user app.
+    ret = ws_callback(req, &wsf);
+
+    free(wsf.payload);
+    return ret;
+}
 
 void startWebServer() {
     if (server)
         return;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_open_sockets = 5;
+    config.stack_size = 3000;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     // Start the httpd server
@@ -303,21 +216,12 @@ void startWebServer() {
 
     // Set URI handlers
     ESP_LOGI(T, "Registering URI handlers");
-    // httpd_uri_t ws = {
-    // 	.uri        = "/ws",
-    // 	.method     = HTTP_GET,
-    // 	.handler    = ws_handler,
-    // 	.user_ctx   = NULL,
-    // 	.is_websocket = true
-    // };
-    // httpd_register_uri_handler(server, &ws);
-
-    httpd_uri_t settings_upload = {
-        .uri = "/settings.json", .method = HTTP_POST, .handler = upload_post_handler};
-    httpd_register_uri_handler(server, &settings_upload);
-
-    httpd_uri_t file_reboot = {.uri = "/reboot", .method = HTTP_GET, .handler = reboot_get_handler};
-    httpd_register_uri_handler(server, &file_reboot);
+    httpd_uri_t ws = {.uri = "/ws",
+                      .method = HTTP_GET,
+                      .handler = ws_handler,
+                      .user_ctx = NULL,
+                      .is_websocket = true};
+    httpd_register_uri_handler(server, &ws);
 
     httpd_uri_t file_download = {.uri = "/*",  // Match all URIs of type /path/to/file
                                  .method = HTTP_GET,

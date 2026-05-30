@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "json_settings.h"
 #include "led_strip.h"
+#include "main.h"
 #include "velo.h"
 #include <math.h>
 #include <string.h>
@@ -98,4 +99,10 @@ void ws2812_animate() {
 
     led_strip_refresh(led_strip);
     tick++;
+}
+
+// Signals battery over-voltage
+void ws2812_white() {
+    for (int i = 0; i < N_LEDS; i++)
+        led_strip_set_pixel(led_strip, i, 0xFF, 0xD0, 0xD0);
 }

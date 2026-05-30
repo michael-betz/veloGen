@@ -7,9 +7,9 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "json_settings.h"
+#include "main.h"
 #include "mqtt_client.h"
 #include "velo.h"
-#include "velo_wifi.h"
 #include <errno.h>
 #include <stdio.h>
 #include <time.h>
@@ -28,15 +28,18 @@ typedef struct {
 #define BLOCK_SIZE sizeof(t_datum)
 
 // paths for the cache and pointer file
-#define FILE_BUF "/lfs/velo_buf.dat"
-#define FILE_PTR1 "/lfs/velo_ptr1.dat"
-#define FILE_PTR2 "/lfs/velo_ptr2.dat"
+#define FILE_BUF (F_PREFIX "/velo_buf.dat")
+#define FILE_PTR1 (F_PREFIX "/velo_ptr1.dat")
+#define FILE_PTR2 (F_PREFIX "/velo_ptr2.dat")
 
 // cache is a ring buffer, 0.5 MB is enough for 9 h at 1 Hz
 #define MAX_CACHE_SIZE (512 * 1024 / BLOCK_SIZE)  // [blocks]
 
 // max. number of blocks to dump in one mqtt message
 #define BULK_CHUNKS 64
+
+esp_mqtt_client_handle_t mqtt_c = {0};
+bool isMqttConnect = false;
 
 // cache file (stays open for r+)
 FILE *f_buf = NULL;
@@ -377,4 +380,24 @@ void cache_handle() {
         if ((m_seq++ % 30) == 0)
             commit_ptrs();
     }
+}
+
+void mqtt_init() {
+    // MQTT client
+    esp_mqtt_client_config_t mqtt_cfg;
+    memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
+    mqtt_cfg.broker.address.uri = jGetS(getSettings(), "mqtt_url", "null");
+
+    // Root certificate to verify server public keys are legit
+    // copy of /etc/ssl/certs/DST_Root_CA_X3.pem
+    // matching broker configuration using letsencrypt:
+    // https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
+    // mqtt_cfg.broker.verification.certificate = ROOT_CERT;
+    // mqtt_cfg.broker.verification.certificate_len = ROOT_CERT_E - ROOT_CERT;
+
+    mqtt_cfg.network.disable_auto_reconnect = true;
+
+    mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
+    if (!mqtt_c)
+        log_e("Error initializing mqtt client");
 }

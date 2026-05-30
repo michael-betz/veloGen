@@ -4,3 +4,4 @@ dependencies:
   espressif/mqtt: "*"
   joltwallet/littlefs: ">=1.16.0"
   espressif/led_strip: ">=3.0.3"
+  espressif/mdns: ">=1.11.1"
