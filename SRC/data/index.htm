@@ -99,12 +99,6 @@ websocket.onopen = function(evt) {
   websocket.send('b');
 
   intervalId = setInterval(function() {
-    if (ts_msg != undefined && (Date.now() - ts_msg) > 2000) {
-      console.log("Websocket watchdog tripped!");
-      set_status_bar("❓ connection lost");
-      bnStoreDDS.disabled = true;
-    }
-
     // get heap command
     websocket.send("h");
     // dump log updates
@@ -138,12 +132,11 @@ websocket.onmessage = function(evt) {
     free_min_kB = Math.floor(tmp[2] / 1024);
     n_underflows = tmp[9];
 
-    set_status_bar(`📡 ${rssi} dBm\t💾 ${free_kB} kB (min ${free_min_kB} kB)\t⚙️ ${cpu_load} % (${n_underflows})`);
+    set_status_bar(`📡 ${rssi} dBm\t💾 ${free_kB} kB (min ${free_min_kB} kB)`);
   } else if (dat[0] == '{') {
     console.log("Got Settings", dat);
     textArea.value = dat;
     prettyPrint();
-    bnStoreDDS.disabled = false;
     if (isWriting)
       tStatus.innerText = "applied!";
   }

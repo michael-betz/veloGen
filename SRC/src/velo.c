@@ -143,7 +143,15 @@ void velogen_sleep(bool isReboot) {
     wifiDisconnect();
     if (f_buf)
         fclose(f_buf);
+
     gps_sleep(nmea_hdl);
+
+    // Keep GPS UART RX pin high during sleep to prevent it from waking up
+    gpio_reset_pin(P_GPS_RX);
+    gpio_set_direction(P_GPS_RX, GPIO_MODE_OUTPUT);
+    gpio_set_level(P_GPS_RX, 1);
+    gpio_hold_en(P_GPS_RX);
+    gpio_deep_sleep_hold_en();
 
     if (isReboot) {
         log_e("calling esp_restart()");
@@ -187,7 +195,7 @@ static void gps_event_handler(void *event_handler_arg,
                  gps->dop_p);
         break;
     case GPS_UNKNOWN:
-        ESP_LOGW(T, "Unknown statement: %s", (char *)event_data);
+        ESP_LOGW(T, "%s", (char *)event_data);
         break;
     default:
         break;
@@ -253,6 +261,7 @@ void velogen_loop() {
     bool button = !gpio_get_level(P_BOOT0);
     if (!button_ && button) {
         ESP_LOGW(T, "Sleepy time 💤");
+
         velogen_sleep(false);
 
         // if (wifi_state == WIFI_AP_MODE)

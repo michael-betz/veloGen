@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/uart_types.h"
+#include "portmacro.h"
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
