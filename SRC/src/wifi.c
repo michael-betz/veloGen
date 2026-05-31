@@ -1,17 +1,16 @@
 #include "wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_sntp.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types_generic.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "json_settings.h"
-#include "lwip/sockets.h"
-#include "main.h"
 #include "mdns.h"
 #include "nvs_flash.h"
+#include "portmacro.h"
 #include <string.h>
+#include <time.h>
 
 // #include "esp_dpp.h"
 // #include "qrcode.h"
@@ -62,14 +61,12 @@ static void scan_done(void *arg, esp_event_base_t event_base, int32_t event_id, 
         strncpy((char *)cfg.sta.ssid, ssid, 31);
         strncpy((char *)cfg.sta.password, pw, 63);
         cfg.sta.scan_method = WIFI_FAST_SCAN;
-        cfg.sta.bssid_set = true;
-        memcpy(cfg.sta.bssid, ap_info[i].bssid, 6);
-        cfg.sta.channel = ap_info[i].primary;
         cfg.sta.pmf_cfg.capable = true;
 
         E(esp_wifi_set_mode(WIFI_MODE_STA));
         E(esp_wifi_set_config(WIFI_IF_STA, &cfg));
-        // E(esp_wifi_set_ps(WIFI_PS_NONE));  // otherwise we get a 300 ms ping
+        // E(esp_wifi_set_ps(WIFI_PS_NONE));
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         E(esp_wifi_connect());
         return;
     }
@@ -78,13 +75,13 @@ static void scan_done(void *arg, esp_event_base_t event_base, int32_t event_id, 
     wifi_state = WIFI_NOT_CONNECTED;
 }
 
+static int wifi_retry_count = 0;
+#define MAX_WIFI_RETRIES 3
+
 static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGI(T, "Got ip " IPSTR, IP2STR(&event->ip_info.ip));
-
-    // trigger time sync
-    sntp_restart();
-
+    wifi_retry_count = 0;
     wifi_state = WIFI_CONNECTED;
 }
 
@@ -95,7 +92,14 @@ static void got_discon(void *arg, esp_event_base_t event_base, int32_t event_id,
         ESP_LOGW(T, "reason: %d", ed->reason);
     }
 
-    wifi_state = WIFI_NOT_CONNECTED;
+    if (wifi_retry_count < MAX_WIFI_RETRIES) {
+        ESP_LOGI(T, "Retrying connection %d / %d ...", wifi_retry_count + 1, MAX_WIFI_RETRIES);
+        esp_wifi_connect();
+        wifi_retry_count++;
+        wifi_state = WIFI_SCANNING;
+    } else {
+        wifi_state = WIFI_NOT_CONNECTED;
+    }
 }
 
 // static void dpp_enrollee_event_cb(esp_supp_dpp_event_t event, void *data) {
@@ -165,6 +169,7 @@ void initWifi() {
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     E(esp_wifi_init(&cfg));
+    // esp_wifi_set_storage(WIFI_STORAGE_RAM);
 
     // Initialize default station as network interface instance (esp-netif)
     esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
@@ -177,6 +182,8 @@ void initWifi() {
     E(esp_netif_set_hostname(sta_netif, hostname));
     E(mdns_init());
     E(mdns_hostname_set(hostname));
+    E(mdns_instance_name_set("velogen bike computer"));
+    E(mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0));
 
     // Set the timezone
     const char *tz_str = jGetS(getSettings(), "timezone", "PST8PDT");
@@ -191,7 +198,9 @@ void initWifi() {
     wifi_ap_config.ap.ssid_len = l;
     memcpy(wifi_ap_config.ap.ssid, hostname, l);
 
+    E(esp_wifi_set_mode(WIFI_MODE_STA));
     E(esp_wifi_start());
+    vTaskDelay(20 / portTICK_PERIOD_MS);
     tryJsonConnect();
 }
 
@@ -200,6 +209,7 @@ void tryJsonConnect() {
     E(esp_wifi_set_mode(WIFI_MODE_STA));
     E(esp_wifi_scan_start(NULL, false));
     // fires SYSTEM_EVENT_SCAN_DONE when done, calls scan_done() ...
+    wifi_retry_count = 0;
     wifi_state = WIFI_SCANNING;
 }
 
@@ -224,4 +234,9 @@ void tryEasyConnect() {
     // E(esp_supp_dpp_start_listen());
     // ESP_LOGI(T, "Started listening for DPP Authentication");
     // wifi_state = WIFI_DPP_LISTENING;
+}
+
+void wifiDisconnect() {
+    wifi_retry_count = MAX_WIFI_RETRIES;
+    E(esp_wifi_disconnect());
 }

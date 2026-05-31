@@ -22,4 +22,6 @@ void tryJsonConnect();
 void tryApMode();
 void tryEasyConnect();
 
+void wifiDisconnect();
+
 #endif

@@ -8,6 +8,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
+#include "freertos/idf_additions.h"
 #include "main.h"
 #include <stdio.h>
 #include <string.h>
@@ -18,7 +19,7 @@ static const char *T = "STATIC_WS";
 static httpd_handle_t server = NULL;
 
 #define FILE_PATH_MAX 32
-#define SCRATCH_BUFSIZE 128  // Dynamically allocated
+#define SCRATCH_BUFSIZE 2048  // Dynamically allocated
 
 #define IS_FILE_EXT(filename, ext)                                                                 \
     (strcasecmp(&filename[strlen(filename) - sizeof(ext) + 1], ext) == 0)
@@ -120,11 +121,13 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    // to stop firefox from bitching when testing the javascript
-    // httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-
     ESP_LOGI(T, "Sending file : %s (%ld bytes)...", filename, file_stat.st_size);
     set_content_type_from_file(req, filename);
+
+    // Tell the browser to cache static files for an hour (3600 seconds)
+    httpd_resp_set_hdr(req, "Cache-Control", "public, max-age=3600");
+    // to stop firefox from bitching when testing the javascript
+    // httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
 
     /* Retrieve the pointer to scratch buffer for temporary storage */
     char *chunk = malloc(SCRATCH_BUFSIZE);
@@ -140,12 +143,8 @@ static esp_err_t download_get_handler(httpd_req_t *req) {
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, chunksize) != ESP_OK) {
                 fclose(fd);
-                ESP_LOGE(T, "File sending failed!");
-                /* Abort sending file */
-                httpd_resp_sendstr_chunk(req, NULL);
-                /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
                 free(chunk);
+                ESP_LOGE(T, "File sending failed!");
                 return ESP_FAIL;
             }
         }
@@ -203,8 +202,7 @@ void startWebServer() {
         return;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_open_sockets = 5;
-    config.stack_size = 3000;
+    config.task_priority = tskIDLE_PRIORITY;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     // Start the httpd server

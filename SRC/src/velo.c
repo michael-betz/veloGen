@@ -5,12 +5,14 @@
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
+#include "freertos/idf_additions.h"
 #include "ina219.h"
 #include "json_settings.h"
 #include "main.h"
 #include "mqtt_cache.h"
 #include "mqtt_client.h"
 #include "nmea_parser.h"
+#include "portmacro.h"
 #include "static_ws.h"
 #include "time.h"
 #include "wifi.h"
@@ -138,11 +140,10 @@ unsigned counter_read() {
 
 void velogen_sleep(bool isReboot) {
     ws2812_off();
-    esp_wifi_disconnect();
+    wifiDisconnect();
     if (f_buf)
         fclose(f_buf);
     gps_sleep(nmea_hdl);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     if (isReboot) {
         log_e("calling esp_restart()");
@@ -157,6 +158,7 @@ void velogen_sleep(bool isReboot) {
     // esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
     esp_sleep_enable_ext1_wakeup((1 << P_BOOT0), ESP_EXT1_WAKEUP_ALL_LOW);
 
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     esp_deep_sleep_start();  // ZzzZZZzzzZZ
 }
 
@@ -241,11 +243,24 @@ void velogen_init() {
 // main loop, called precisely every 50 ms
 void velogen_loop() {
     static int frm = 0;
+    static bool button_ = false;
 
     int curTs = xTaskGetTickCount();
     static int ts_sleep = 0;
     static int ts_con =
         300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
+
+    bool button = !gpio_get_level(P_BOOT0);
+    if (!button_ && button) {
+        ESP_LOGW(T, "Sleepy time 💤");
+        velogen_sleep(false);
+
+        // if (wifi_state == WIFI_AP_MODE)
+        //     tryJsonConnect();
+        // else
+        //     tryApMode();
+    }
+    button_ = button;
 
     g_mVolts = inaV();
     g_mAmps = inaI();
@@ -265,15 +280,6 @@ void velogen_loop() {
             tryJsonConnect();
             // don't try to re-connect in the next 5 minutes
             ts_con += sleepTimeout;
-        }
-
-        if (gpio_get_level(P_BOOT0) == 0) {
-            gps_sleep(nmea_hdl);
-
-            // if (wifi_state == WIFI_AP_MODE)
-            //     tryJsonConnect();
-            // else
-            //     tryApMode();
         }
 
         if ((curTs - ts_sleep) > sleepTimeout)
