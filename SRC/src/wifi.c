@@ -9,6 +9,7 @@
 #include "mdns.h"
 #include "nvs_flash.h"
 #include "portmacro.h"
+#include "ws2812.h"
 #include <string.h>
 #include <time.h>
 
@@ -27,6 +28,8 @@ int wifi_state = WIFI_NOT_CONNECTED;
 static void scan_done(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     uint16_t n = 24;
     static wifi_ap_record_t ap_info[24];
+
+    ws2812_indicate(0, 0);
 
     E(esp_wifi_scan_get_ap_records(&n, ap_info));
 
@@ -83,6 +86,7 @@ static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, voi
     ESP_LOGI(T, "Got ip " IPSTR, IP2STR(&event->ip_info.ip));
     wifi_retry_count = 0;
     wifi_state = WIFI_CONNECTED;
+    ws2812_indicate(20 * 10, 0x0000FF00);  // wifi connected = green blink
 }
 
 static void got_discon(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -99,6 +103,7 @@ static void got_discon(void *arg, esp_event_base_t event_base, int32_t event_id,
         wifi_state = WIFI_SCANNING;
     } else {
         wifi_state = WIFI_NOT_CONNECTED;
+        ws2812_indicate(20 * 10, 0x000000FF);  // wifi disconnected = red blink
     }
 }
 
@@ -211,6 +216,7 @@ void tryJsonConnect() {
     // fires SYSTEM_EVENT_SCAN_DONE when done, calls scan_done() ...
     wifi_retry_count = 0;
     wifi_state = WIFI_SCANNING;
+    ws2812_indicate(20 * 10, 0x00FF0000);  // scanning = blue blink
 }
 
 void tryApMode() {
@@ -218,6 +224,7 @@ void tryApMode() {
     E(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
     ESP_LOGI(T, "started AP mode. SSID: %s", WIFI_HOST_NAME);
     wifi_state = WIFI_AP_MODE;
+    ws2812_indicate(20 * 10, 0x0000FFFF);  // wifi AP = yellow blink
 }
 
 void tryEasyConnect() {

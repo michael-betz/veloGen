@@ -160,11 +160,11 @@ void velogen_sleep(bool isReboot) {
 
     // Switch off everything that my drain power
     inaOff();
-    gpio_set_level(P_AUX_PWR, 0);
+    setAuxPower(0);
 
     // enable wheel pulse as wakeup source
-    // esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
-    esp_sleep_enable_ext1_wakeup((1 << P_BOOT0), ESP_EXT1_WAKEUP_ALL_LOW);
+    esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
+    // esp_sleep_enable_ext1_wakeup((1 << P_BOOT0), ESP_EXT1_WAKEUP_ALL_LOW);
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
     esp_deep_sleep_start();  // ZzzZZZzzzZZ
@@ -260,14 +260,13 @@ void velogen_loop() {
 
     bool button = !gpio_get_level(P_BOOT0);
     if (!button_ && button) {
-        ESP_LOGW(T, "Sleepy time 💤");
+        // ESP_LOGW(T, "Sleepy time 💤");
+        // velogen_sleep(false);
 
-        velogen_sleep(false);
-
-        // if (wifi_state == WIFI_AP_MODE)
-        //     tryJsonConnect();
-        // else
-        //     tryApMode();
+        if (wifi_state == WIFI_AP_MODE)
+            tryJsonConnect();
+        else
+            tryApMode();
     }
     button_ = button;
 
@@ -297,12 +296,7 @@ void velogen_loop() {
 
     // 20 Hz max.
     cache_handle();
-
-    // TODO: better battery protection (shunt R maybe?)
-    if (g_mVolts > 8400)
-        ws2812_white();
-    else
-        ws2812_animate();
+    ws2812_animate();
 
     frm++;
 }

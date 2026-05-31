@@ -84,15 +84,39 @@ static void ani2(int tick) {
         led_strip_set_pixel_hsv(led_strip, i, i * 20 + tick, 0xFF, ws2812_intensity);
 }
 
+static int indicate_ticks = 0;
+static unsigned indicate_color = 0;
+
+void ws2812_indicate(int ticks, unsigned color) {
+    indicate_color = color;
+    indicate_ticks = ticks;
+}
+
 void ws2812_animate() {
     static int tick = 0;
 
-    if (g_speed >= 350)
+    // TODO: better battery protection (shunt R maybe?)
+    if (g_mVolts > 8400) {
+        ws2812_white();
+    } else if (indicate_ticks > 0) {
+        if ((tick >> 4) & 1)
+            for (int i = 0; i < N_LEDS; i++)
+                led_strip_set_pixel(led_strip,
+                                    i,
+                                    indicate_color & 0xFF,
+                                    (indicate_color >> 8) & 0xFF,
+                                    (indicate_color >> 16) & 0xFF);
+        else
+            for (int i = 0; i < N_LEDS; i++)
+                led_strip_set_pixel(led_strip, i, 0, 0, 0);
+        indicate_ticks--;
+    } else if (g_speed >= 350) {
         ani2(tick);
-    else if (g_speed >= 250)
+    } else if (g_speed >= 250) {
         ani1(tick);
-    else
+    } else {
         ani0(tick);
+    }
 
     if (g_speed > 150)
         sparkle();
