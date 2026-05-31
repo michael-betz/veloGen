@@ -11,5 +11,9 @@
     "sparkle": 61440,
     "wifis": {
         "INSERT_SSID": "INSERT_PASSWORD"
+    },
+    "log_level": {
+        "*": 3,
+        "VELOGEN": 4
     }
 }
