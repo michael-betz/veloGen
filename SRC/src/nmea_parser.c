@@ -39,7 +39,7 @@
  */
 ESP_EVENT_DEFINE_BASE(ESP_NMEA_EVENT);
 
-static const char *GPS_TAG = "nmea_parser";
+static const char *GPS_TAG = "NMEA_PARSER";
 
 /**
  * @brief GPS parser library runtime structure
@@ -796,38 +796,4 @@ esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl,
     esp_gps_t *esp_gps = (esp_gps_t *)nmea_hdl;
     return esp_event_handler_unregister_with(
         esp_gps->event_loop_hdl, ESP_NMEA_EVENT, ESP_EVENT_ANY_ID, event_handler);
-}
-
-void gps_sleep(nmea_parser_handle_t nmea_hdl) {
-    esp_gps_t *esp_gps = (esp_gps_t *)nmea_hdl;
-    const uint8_t sleep_cmd[] = {0xB5,
-                                 0x62,
-                                 0x02,
-                                 0x41,
-                                 0x08,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x02,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x4D,
-                                 0x3B};
-
-    uart_write_bytes(esp_gps->uart_port, (const char *)sleep_cmd, sizeof(sleep_cmd));
-    ESP_LOGI(GPS_TAG, "GPS sleep command sent");
-}
-
-void gps_wake(nmea_parser_handle_t nmea_hdl) {
-    esp_gps_t *esp_gps = (esp_gps_t *)nmea_hdl;
-    const char dummy_byte = 0xFF;
-
-    uart_write_bytes(esp_gps->uart_port, &dummy_byte, 1);
-    ESP_LOGD("GPS", "Wake byte sent");
-
-    // Give the module a moment to wake up and resume processing
-    vTaskDelay(pdMS_TO_TICKS(100));
 }

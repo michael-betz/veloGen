@@ -6,22 +6,23 @@
 #include "esp_sleep.h"
 #include "esp_wifi.h"
 #include "freertos/idf_additions.h"
+#include "gps.h"
 #include "ina219.h"
 #include "json_settings.h"
 #include "main.h"
 #include "mqtt_cache.h"
 #include "mqtt_client.h"
-#include "nmea_parser.h"
 #include "portmacro.h"
 #include "static_ws.h"
 #include "time.h"
 #include "wifi.h"
 #include "ws2812.h"
+#include <string.h>
 #include <time.h>
 
 #define N_PINS 4
 
-static const char *T = "VELOGEN";
+static const char *T = "VELO";
 
 static unsigned sleepTimeout = 30000;
 
@@ -40,8 +41,7 @@ static unsigned um_p_pulse = 0;
 // 0: Off, 1: On
 void setAuxPower(bool val) { gpio_set_level(P_AUX_PWR, val); }
 
-pcnt_unit_handle_t pcnt_unit = NULL;
-nmea_parser_handle_t nmea_hdl = NULL;
+static pcnt_unit_handle_t pcnt_unit = NULL;
 
 // Pulse counter to count wheel rotations
 static void counter_init() {
@@ -141,10 +141,12 @@ unsigned counter_read() {
 void velogen_sleep(bool isReboot) {
     ws2812_off();
     wifiDisconnect();
-    if (f_buf)
-        fclose(f_buf);
 
-    gps_sleep(nmea_hdl);
+    if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY) == pdTRUE)
+        if (record_file)
+            fclose(record_file);
+
+    gps_sleep();
 
     // Keep GPS UART RX pin high during sleep to prevent it from waking up
     gpio_reset_pin(P_GPS_RX);
@@ -168,52 +170,6 @@ void velogen_sleep(bool isReboot) {
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
     esp_deep_sleep_start();  // ZzzZZZzzzZZ
-}
-
-static void gps_event_handler(void *event_handler_arg,
-                              esp_event_base_t event_base,
-                              int32_t event_id,
-                              void *event_data) {
-    gps_t *gps = NULL;
-    switch (event_id) {
-    case GPS_UPDATE:
-        gps = (gps_t *)event_data;
-        /* print information parsed from GPS statements */
-        ESP_LOGI(T,
-                 "%2d/%2d, %d/%d/%d %2d:%2d:%2d, %.05f°N, %.05f°E, %.02f m, +- %.02f m",
-                 gps->sats_in_use,
-                 gps->sats_in_view,
-                 gps->date.year + 2000,
-                 gps->date.month,
-                 gps->date.day,
-                 gps->tim.hour,
-                 gps->tim.minute,
-                 gps->tim.second,
-                 gps->latitude,
-                 gps->longitude,
-                 gps->altitude,
-                 gps->dop_p);
-        break;
-    case GPS_UNKNOWN:
-        ESP_LOGW(T, "%s", (char *)event_data);
-        break;
-    default:
-        break;
-    }
-}
-
-void gps_init() {
-    nmea_parser_config_t config = {.uart = {.uart_port = UART_NUM_1,
-                                            .rx_pin = P_GPS_RX,
-                                            .tx_pin = P_GPS_TX,
-                                            .baud_rate = 9600,
-                                            .data_bits = UART_DATA_8_BITS,
-                                            .parity = UART_PARITY_DISABLE,
-                                            .stop_bits = UART_STOP_BITS_1,
-                                            .event_queue_size = 16}};
-    nmea_hdl = nmea_parser_init(&config);
-    nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
-    gps_wake(nmea_hdl);
 }
 
 void velogen_init() {
@@ -241,8 +197,7 @@ void velogen_init() {
     gps_init();
     initWifi();
     startWebServer();
-    mqtt_init();
-    cache_init();  // open / create cache file on SPIFFS
+    cache_init();  // open / create telemetry cache file and mqtt client
 
     // init led strip last, so power can stabilize
     ws2812_init();

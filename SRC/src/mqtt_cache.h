@@ -1,13 +1,10 @@
-#ifndef MQTT_CACHE_H
-#define MQTT_CACHE_H
+#pragma once
 #include "mqtt_client.h"
+#include <stdio.h>
 
-extern FILE *f_buf;
-
-extern esp_mqtt_client_handle_t mqtt_c;
-extern bool isMqttConnect;
+// Telemetry records are appended here if offline. Close this file before sleep!
+extern FILE *record_file;
+extern SemaphoreHandle_t telemetry_mutex;
 
 void cache_init();
 void cache_handle();
-void mqtt_init();
-#endif

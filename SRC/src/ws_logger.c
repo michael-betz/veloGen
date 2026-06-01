@@ -12,7 +12,7 @@
 // Rolling buffer size in RTC mem for log entries in bytes
 #define LOG_FILE_SIZE 3576
 
-static const char *T = "WS_LOG";
+static const char *T = "WS_LOGGER";
 
 // put the buffer and write pointer in RTC memory,
 // such that it survives sleep mode

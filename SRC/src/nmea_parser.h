@@ -193,9 +193,6 @@ esp_err_t nmea_parser_add_handler(nmea_parser_handle_t nmea_hdl,
 esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl,
                                      esp_event_handler_t event_handler);
 
-void gps_wake(nmea_parser_handle_t nmea_hdl);
-void gps_sleep(nmea_parser_handle_t nmea_hdl);
-
 #ifdef __cplusplus
 }
 #endif

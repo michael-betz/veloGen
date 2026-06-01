@@ -1,18 +1,19 @@
-// takes care of taking measurements and sending them off on mqtt if connected
-// if not, cache measurements in SPIFFS file and send out once connected
-// implement a circular buffer in the file.
-// There is a read pointer, pointing to the first valid block and the number of blocks
-// both are stored in `velo_ptr.dat`
-
-#include "esp_event.h"
+#include "esp_crt_bundle.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+#include "gps.h"
 #include "json_settings.h"
 #include "main.h"
 #include "mqtt_client.h"
 #include "velo.h"
-#include <errno.h>
+#include <stdatomic.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <time.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/unistd.h>
 
 static const char *T = "MQTT_CACHE";
 
@@ -22,311 +23,187 @@ typedef struct {
     uint16_t volts;
     int16_t amps;
     uint16_t speed;
-    uint16_t unused;
     uint32_t cnt;
+    float latitude;
+    float longitude;
+    float altitude;
+    float pos_dilution;
 } t_datum;
 #define BLOCK_SIZE sizeof(t_datum)
 
-// paths for the cache and pointer file
-#define FILE_BUF (F_PREFIX "/velo_buf.dat")
-#define FILE_PTR1 (F_PREFIX "/velo_ptr1.dat")
-#define FILE_PTR2 (F_PREFIX "/velo_ptr2.dat")
+#define FILE_PATH (F_PREFIX "/telemetry.bin")
+#define FILE_SEND_PATH (F_PREFIX "/sending.bin")
 
-// cache is a ring buffer, 0.5 MB is enough for 9 h at 1 Hz
-#define MAX_CACHE_SIZE (512 * 1024 / BLOCK_SIZE)  // [blocks]
+// Number of records to send in a single MQTT payload
+#define CHUNK_SIZE 32
 
-// max. number of blocks to dump in one mqtt message
-#define BULK_CHUNKS 64
+// Global state variables
+FILE *record_file = NULL;
+SemaphoreHandle_t telemetry_mutex = NULL;
+static esp_mqtt_client_handle_t mqtt_c = NULL;
+static SemaphoreHandle_t ack_sem = NULL;
 
-esp_mqtt_client_handle_t mqtt_c = {0};
-bool isMqttConnect = false;
-
-// cache file (stays open for r+)
-FILE *f_buf = NULL;
+static atomic_bool mqtt_connected = ATOMIC_VAR_INIT(false);
+static atomic_int pending_ack_id = ATOMIC_VAR_INIT(-1);
 
 // initialized from .json
-const char *mqtt_topic = NULL;
+static bool is_cache_enabled = false;
+static const char *mqtt_topic = NULL;
+static int meas_ticks = 1;
 
-// first entry (read pointer) and number of entries in buffer file [blocks]
-static unsigned block_first = 0, block_N = 0;
+static void transmit_backlog_task(void *pvParameters) {
+    while (1) {
+        // Rotate currently acquiring file to sending file ...
+        if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY) == pdTRUE) {
+            struct stat st;
 
-// msg_id of the currently transmitted / last acknowledged mqtt message
-static int msg_needs_ack = -1, last_ack = -1;
+            // stat returns -1 if the file doesn't EXISTS.
+            // Then we can close and rename FILE_PATH to FILE_SEND_PATH.
+            if (stat(FILE_SEND_PATH, &st) != 0) {
+                if (record_file != NULL) {
+                    fclose(record_file);
+                    record_file = NULL;
+                }
+                // This will fail harmlessly if FILE_PATH doesn't exist either
+                rename(FILE_PATH, FILE_SEND_PATH);
+            }
+            xSemaphoreGive(telemetry_mutex);
+        }
+
+        // Attempt to open the sending file
+        FILE *send_file = fopen(FILE_SEND_PATH, "rb");
+        if (send_file == NULL) {
+            ESP_LOGI(T, "No more backlog to send. Task finished.");
+            break;  // Exit the while loop and end the task
+        }
+
+        t_datum buffer[CHUNK_SIZE];
+        size_t read_count;
+        bool transmission_success = true;
+
+        ESP_LOGI(T, "Transmitting backlog chunk...");
+
+        // 3. Transmit the file
+        while ((read_count = fread(buffer, BLOCK_SIZE, CHUNK_SIZE, send_file)) > 0) {
+            if (!atomic_load(&mqtt_connected)) {
+                ESP_LOGW(T, "Lost connection before sending. Halting.");
+                transmission_success = false;
+                break;
+            }
+
+            // Clear the semaphore in case of lingering triggers
+            xSemaphoreTake(ack_sem, 0);
+
+            int msg_id = esp_mqtt_client_publish(
+                mqtt_c, mqtt_topic, (const char *)buffer, read_count * BLOCK_SIZE, 1, 0);
+
+            if (msg_id >= 0) {
+                atomic_store(&pending_ack_id, msg_id);
+                if (xSemaphoreTake(ack_sem, pdMS_TO_TICKS(30000)) != pdTRUE) {
+                    ESP_LOGE(T, "Timeout waiting for MQTT ACK. Halting.");
+                    transmission_success = false;
+                    break;
+                }
+            } else {
+                ESP_LOGE(T, "Failed to enqueue MQTT message. Halting.");
+                transmission_success = false;
+                break;
+            }
+        }
+
+        fclose(send_file);
+        atomic_store(&pending_ack_id, -1);
+
+        // Cleanup and loop
+        if (transmission_success) {
+            unlink(FILE_SEND_PATH);
+            ESP_LOGI(T, "Backlog chunk complete and deleted.");
+            // The loop will now repeat. If FILE_PATH accumulated new data
+            // during this upload, it will be rotated and sent next!
+        } else {
+            // Network failed. Leave FILE_SEND_PATH intact so we can resume later.
+            break;
+        }
+    }
+
+    vTaskDelete(NULL);
+}
 
 static void
 cb_mqtt_pub(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
-    last_ack = event->msg_id;
-    if (msg_needs_ack == event->msg_id) {
-        log_d("msg_needs_ack=%d, msg_id=%d", msg_needs_ack, event->msg_id);
-        msg_needs_ack = 0;
-    }
+    if (atomic_load(&pending_ack_id) == event->msg_id)
+        xSemaphoreGive(ack_sem);
 }
+
 static void
 cb_mqtt_con(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
-    isMqttConnect = true;
+    atomic_store(&mqtt_connected, true);
+    xTaskCreate(transmit_backlog_task, "mqtt_transmit", 4096, NULL, 5, NULL);
 }
+
 static void
 cb_mqtt_discon(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
-    isMqttConnect = false;
+    atomic_store(&mqtt_connected, false);
 }
-
-// write block_first and block_N to FILE_PTR
-static int commit_ptrs() {
-    static unsigned seq = 0;
-    const char *fName = (seq & 1) ? FILE_PTR2 : FILE_PTR1;
-    seq++;
-    FILE *f_ptr = fopen(fName, "w");
-    if (!f_ptr) {
-        log_e("%s: %s, cannot write, stopping caching", fName, strerror(errno));
-        fclose(f_buf);
-        f_buf = NULL;
-        return -1;
-    }
-    int ret = fwrite(&block_first, sizeof(block_first), 1, f_ptr);
-    ret += fwrite(&block_N, sizeof(block_N), 1, f_ptr);
-    ret += fwrite(&seq, sizeof(seq), 1, f_ptr);
-    fclose(f_ptr);
-    log_d("commit_ptrs(): block_first: %d, block_N: %d, seq: %d, ret: %d",
-          block_first,
-          block_N,
-          seq,
-          ret);
-    return 0;
-}
-
-static void load_ptrs() {
-    unsigned a_first = 0, a_N = 0, a_seq = 0, b_first = 0, b_N = 0, b_seq = 0;
-    int ret = -1;
-
-    // read pointer file A
-    FILE *f_ptr = fopen(FILE_PTR1, "r");
-    if (f_ptr) {
-        ret = fread(&a_first, sizeof(a_first), 1, f_ptr);
-        ret += fread(&a_N, sizeof(a_N), 1, f_ptr);
-        ret += fread(&a_seq, sizeof(a_seq), 1, f_ptr);
-        log_w("cacheA: %d, %d, %d", a_first, a_N, a_seq);
-        fclose(f_ptr);
-        f_ptr = NULL;
-    }
-    if (ret != 3) {
-        log_w("Reading %s failed. Ret: %d", FILE_PTR1, ret);
-        a_first = 0;
-        a_N = 0;
-        a_seq = 0;
-    }
-
-    // read pointer file B
-    f_ptr = fopen(FILE_PTR2, "r");
-    if (f_ptr) {
-        ret = fread(&b_first, sizeof(b_first), 1, f_ptr);
-        ret += fread(&b_N, sizeof(b_N), 1, f_ptr);
-        ret += fread(&b_seq, sizeof(b_seq), 1, f_ptr);
-        log_w("cacheB: %d, %d, %d", b_first, b_N, b_seq);
-        fclose(f_ptr);
-        f_ptr = NULL;
-    }
-    if (ret != 3) {
-        log_w("Reading %s failed. Ret: %d", FILE_PTR2, ret);
-        b_first = 0;
-        b_N = 0;
-        b_seq = 0;
-    }
-
-    if (b_seq > a_seq) {
-        block_first = b_first;
-        block_N = b_N;
-    } else {
-        block_first = a_first;
-        block_N = a_N;
-    }
-
-    if (block_first > (MAX_CACHE_SIZE - 1) || block_N > MAX_CACHE_SIZE) {
-        log_w("illegal cache: block_first = %d, block_N = %d, starting from scratch",
-              block_first,
-              block_N);
-        block_first = 0;
-        block_N = 0;
-    } else {
-        log_w("cache initialized: block_first = %d, block_N = %d", block_first, block_N);
-    }
-}
-
-int meas_ticks = 1;
 
 void cache_init() {
+    telemetry_mutex = xSemaphoreCreateMutex();
+    ack_sem = xSemaphoreCreateBinary();
     cJSON *s = getSettings();
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
     mqtt_topic = jGetS(s, "mqtt_topic", "velogen/raw");
-    log_i("Publishing to %s", mqtt_topic);
+    is_cache_enabled = jGetB(s, "mqtt_cache_enabled", false);
+    ESP_LOGI(T, "Publishing to %s", mqtt_topic);
+
+    // MQTT client
+    esp_mqtt_client_config_t mqtt_cfg = {0};
+    mqtt_cfg.broker.address.uri = jGetS(getSettings(), "mqtt_url", "null");
+    mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
+    // mqtt_cfg.network.disable_auto_reconnect = true;
+
+    mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
+    if (!mqtt_c) {
+        ESP_LOGE(T, "Error initializing mqtt client");
+        return;
+    }
 
     // register for MQTT events
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
-
-    load_ptrs();
-
-    // Disable file buffer for now, until we fixed the performance issue
-    // open buffer file
-    // f_buf = fopen(FILE_BUF, "r+");
-    // if (!f_buf) {
-    // 	log_w("%s: %s, creating a fresh one ...", FILE_BUF, strerror(errno));
-    // 	f_buf = fopen(FILE_BUF, "w");
-    // 	fclose(f_buf);
-    // 	f_buf = fopen(FILE_BUF, "r+");
-    // 	block_first = 0;
-    // 	block_N = 0;
-    // }
-    // if (!f_buf) {
-    // 	log_e("Didn't work, giving up :( %s", strerror(errno));
-    // 	return;
-    // }
-
-    // avoid seeking beyond end of file, might need to write some dummy
-    // bytes to get the file-size to match up with write pointer
-    // https://github.com/pellepl/spiffs/wiki/Using-spiffs#seeking-in-a-file
-    // fseek(f_buf, 0, SEEK_END);
-    // unsigned fSize = ftell(f_buf);
-    // log_i("fSize = %d", fSize);
-    // unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE; // [blocks]
-    // int lostBytes = wPtr * BLOCK_SIZE - fSize;
-    // if (lostBytes > 0) {
-    // 	log_w("appending %d dummy bytes", lostBytes);
-    // 	while (lostBytes-- > 0)
-    // 		fputc('\0', f_buf);
-    // }
 }
 
-// unsigned timestamp_miliseconds() {
-// 	struct timeval tv;
-// 	gettimeofday(&tv, NULL);
-// 	uint64_t tmp = tv.tv_sec * 1000LL + (tv.tv_usec / 1000LL);
-// 	tmp %= 31536000LL * 1000;
-// 	return tmp;
-// }
-
-// call this to take a measurement and deal with them
-void cache_handle() {
-    static unsigned seq = 0, m_seq = 0;
-
-    static enum {
-        ST_OFFLINE,      // write to cache, dont publish
-        ST_ONLINE,       // cache is empty
-        ST_ONLINE_CA,    // cache needs to be transmitted
-        ST_WAIT_FOR_PUB  // wait for ACK of block
-    } tx_state;
-
-    static char *buf = NULL;
-    static int initial_block_N = 0;  // [blocks]
-    static int nTX = 0;              // [blocks]
-
-    if (f_buf) {
-        switch (tx_state) {
-        case ST_ONLINE_CA:
-            // freshly offline, but there's still data in the cache
-            if (!isMqttConnect) {
-                commit_ptrs();
-                tx_state = ST_OFFLINE;
-                break;
-            }
-
-            // no more data in the cache to transmit
-            if (block_N <= 0) {
-                block_N = 0;
-                block_first = 0;
-                commit_ptrs();
-                tx_state = ST_ONLINE;
-                break;
-            }
-
-            // nTX = number of [blocks] to transmit in this cycle
-            nTX = block_N;
-            // avoid buffer roll-over during transmission
-            if ((block_first + nTX) > MAX_CACHE_SIZE)
-                nTX = MAX_CACHE_SIZE - block_first;
-            if (nTX > BULK_CHUNKS)
-                nTX = BULK_CHUNKS;
-
-            log_i(
-                "ST_ONLINE_CA: block_first: %d, block_N: %d,  nTX: %d", block_first, block_N, nTX);
-            buf = malloc(nTX * BLOCK_SIZE);
-            if (!buf) {
-                log_e("Could not allocate buffer :(");
-                break;
-            }
-            log_i("fseek %d", block_first * BLOCK_SIZE);
-            if (fseek(f_buf, block_first * BLOCK_SIZE, SEEK_SET) < 0) {
-                log_e("READ seek failed, to %d, %s", block_first * BLOCK_SIZE, strerror(errno));
-                free(buf);
-                break;
-            }
-            int ret = fread(buf, nTX * BLOCK_SIZE, 1, f_buf);
-            if (ret != 1) {
-                log_e("READ fread failed :(, read %d, ret %d", nTX * BLOCK_SIZE, ret);
-                fclose(f_buf);
-
-                f_buf = fopen(FILE_BUF, "r+");
-                free(buf);
-                block_first = 0;
-                block_N = 0;
-                commit_ptrs();
-                break;
-            }
-
-            msg_needs_ack =
-                esp_mqtt_client_publish(mqtt_c, mqtt_topic, buf, nTX * BLOCK_SIZE, 1, 0);
-            free(buf);
-            buf = NULL;
-
-            tx_state = ST_WAIT_FOR_PUB;
-            // short circuit to ST_WAIT_FOR_PUB, see if there's an ack already
-            __attribute__((fallthrough));
-
-        case ST_WAIT_FOR_PUB:
-            // went off-line while waiting for MQTT ACK
-            if (!isMqttConnect) {
-                commit_ptrs();
-                tx_state = ST_OFFLINE;
-                break;
-            }
-
-            // broker sent ACK for the currently active block
-            if (msg_needs_ack == 0 || (last_ack > 0 && last_ack == msg_needs_ack)) {
-                last_ack = -1;
-                msg_needs_ack = -1;
-
-                // move cache pointers
-                block_first = (block_first + nTX) % MAX_CACHE_SIZE;
-                block_N -= nTX;
-                commit_ptrs();
-
-                tx_state = ST_ONLINE_CA;
-            }
-            break;
-
-        case ST_ONLINE:
-            // freshly offline, cache is empty
-            if (!isMqttConnect) {
-                tx_state = ST_OFFLINE;
-            }
-            break;
-
-        case ST_OFFLINE:
-            // freshly online, start emptying the cache
-            if (isMqttConnect) {
-                // How many blocks are in the cache?
-                initial_block_N = block_N;
-                tx_state = ST_ONLINE_CA;
-            }
-            break;
+static void save_telemetry_offline(const t_datum *datum) {
+    if (record_file == NULL) {
+        record_file = fopen(FILE_PATH, "ab");
+        if (!record_file) {
+            ESP_LOGE(T, "Failed to open file for appending");
+            return;
         }
     }
+    fwrite(datum, BLOCK_SIZE, 1, record_file);
+}
+
+void handle_new_measurement(const t_datum *datum) {
+    // Lock-free check if we are online
+    if (atomic_load(&mqtt_connected)) {
+        esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)datum, BLOCK_SIZE, 1, 0);
+    } else if (is_cache_enabled) {
+        // We are offline, take the mutex to protect the file sequence
+        if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY) == pdTRUE) {
+            save_telemetry_offline(datum);
+            xSemaphoreGive(telemetry_mutex);
+        }
+    }
+}
+
+void cache_handle() {
+    static unsigned seq = 0;
 
     // shall we take a new data point?
-    if (!(meas_ticks > 0 && (seq++ % meas_ticks) == 0)) {
+    if (!(meas_ticks > 0 && (seq++ % meas_ticks) == 0))
         return;
-    }
 
     // collect a new data point
     t_datum datum;
@@ -334,70 +211,12 @@ void cache_handle() {
     datum.volts = g_mVolts;
     datum.amps = g_mAmps;
     datum.speed = (uint16_t)g_speed;  // [km/h * 10]
-
     datum.cnt = g_wheelCnt;
-    // static uint32_t tmp_cnt = 0;
-    // datum.cnt = tmp_cnt++;
+    // GPS data
+    datum.longitude = g_gps_data.longitude;
+    datum.latitude = g_gps_data.latitude;
+    datum.altitude = g_gps_data.altitude;
+    datum.pos_dilution = g_gps_data.dop_p;
 
-    if (isMqttConnect) {
-        // if mqtt is connected, publish immediately with QOS1
-        // log_d("datum publish %d, %f", datum.cnt, g_speed);
-        esp_mqtt_client_publish(mqtt_c, mqtt_topic, (const char *)&datum, sizeof(datum), 1, 0);
-    } else {
-        // otherwise append to ring buffer file on SPIFFS
-        if (!f_buf)
-            return;
-
-        unsigned wPtr = (block_first + block_N) % MAX_CACHE_SIZE;  // [blocks]
-
-        // bool sk = false;
-        if (ftell(f_buf) != wPtr * BLOCK_SIZE) {
-            // sk = true;
-            if (fseek(f_buf, wPtr * BLOCK_SIZE, SEEK_SET) < 0) {
-                log_e("seek failed, to %d, %s. Stopping caching.",
-                      wPtr * BLOCK_SIZE,
-                      strerror(errno));
-                fclose(f_buf);
-                f_buf = NULL;
-                return;
-            }
-        }
-
-        // log_d("datum fwrite %d, %f", datum.cnt, g_speed);
-        if (fwrite(&datum, BLOCK_SIZE, 1, f_buf) != 1) {
-            log_e("%s write error! write %d. Stopping caching.", FILE_BUF, BLOCK_SIZE);
-            fclose(f_buf);
-            f_buf = NULL;
-            return;
-        }
-        fflush(f_buf);
-
-        if (block_N < MAX_CACHE_SIZE) {
-            block_N++;
-        } else {
-            block_first = (block_first + 1) % MAX_CACHE_SIZE;
-        }
-        if ((m_seq++ % 30) == 0)
-            commit_ptrs();
-    }
-}
-
-void mqtt_init() {
-    // MQTT client
-    esp_mqtt_client_config_t mqtt_cfg;
-    memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
-    mqtt_cfg.broker.address.uri = jGetS(getSettings(), "mqtt_url", "null");
-
-    // Root certificate to verify server public keys are legit
-    // copy of /etc/ssl/certs/DST_Root_CA_X3.pem
-    // matching broker configuration using letsencrypt:
-    // https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-18-04-quickstart
-    // mqtt_cfg.broker.verification.certificate = ROOT_CERT;
-    // mqtt_cfg.broker.verification.certificate_len = ROOT_CERT_E - ROOT_CERT;
-
-    mqtt_cfg.network.disable_auto_reconnect = true;
-
-    mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
-    if (!mqtt_c)
-        log_e("Error initializing mqtt client");
+    handle_new_measurement(&datum);
 }

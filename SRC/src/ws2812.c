@@ -9,7 +9,7 @@
 #include <math.h>
 #include <string.h>
 
-static const char *TAG = "ws2812";
+static const char *TAG = "WS2812";
 
 led_strip_handle_t led_strip;
 static int ws2812_intensity = 0x80;

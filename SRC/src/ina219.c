@@ -9,7 +9,7 @@
 static i2c_master_bus_handle_t bus_handle = 0;
 static i2c_master_dev_handle_t dev_handle = 0;
 
-static const char *T = "INA2019";
+static const char *T = "INA219";
 
 static uint16_t inaCfg = 0;
 
