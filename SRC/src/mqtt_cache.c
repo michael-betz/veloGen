@@ -1,5 +1,7 @@
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
+#include "esp_wifi_types_generic.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -138,13 +140,19 @@ cb_mqtt_pub(void *handler_args, esp_event_base_t base, int32_t event_id, void *e
 
 static void
 cb_mqtt_con(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+    ESP_LOGI(T, "MQTT connected");
     atomic_store(&mqtt_connected, true);
     xTaskCreate(transmit_backlog_task, "mqtt_transmit", 4096, NULL, 5, NULL);
 }
 
 static void
 cb_mqtt_discon(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+    ESP_LOGI(T, "MQTT disconnected");
     atomic_store(&mqtt_connected, false);
+}
+
+static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    esp_mqtt_client_reconnect(mqtt_c);
 }
 
 void cache_init() {
@@ -154,13 +162,16 @@ void cache_init() {
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
     mqtt_topic = jGetS(s, "mqtt_topic", "velogen/raw");
     is_cache_enabled = jGetB(s, "mqtt_cache_enabled", false);
-    ESP_LOGI(T, "Publishing to %s", mqtt_topic);
 
     // MQTT client
     esp_mqtt_client_config_t mqtt_cfg = {0};
-    mqtt_cfg.broker.address.uri = jGetS(getSettings(), "mqtt_url", "null");
+    mqtt_cfg.broker.address.uri = jGetS(s, "mqtt_url", "null");
+    mqtt_cfg.credentials.client_id = jGetS(s, "hostname", WIFI_HOST_NAME);
     mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
-    // mqtt_cfg.network.disable_auto_reconnect = true;
+    mqtt_cfg.task.priority = 1;
+    // mqtt_cfg.network.reconnect_timeout_ms = 300;
+    mqtt_cfg.network.disable_auto_reconnect = true;
+    ESP_LOGI(T, "Publishing to %s, %s", mqtt_cfg.broker.address.uri, mqtt_topic);
 
     mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
     if (!mqtt_c) {
@@ -172,6 +183,9 @@ void cache_init() {
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
+    E(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &got_ip, NULL));
+
+    esp_mqtt_client_start(mqtt_c);
 }
 
 static void save_telemetry_offline(const t_datum *datum) {
@@ -204,6 +218,8 @@ void cache_handle() {
     // shall we take a new data point?
     if (!(meas_ticks > 0 && (seq++ % meas_ticks) == 0))
         return;
+
+    ESP_LOGD(T, "%d mV,  %d mA, %d cnt", g_mVolts, g_mAmps, g_wheelCnt);
 
     // collect a new data point
     t_datum datum;

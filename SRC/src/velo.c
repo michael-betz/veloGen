@@ -235,8 +235,6 @@ void velogen_loop() {
     }
 
     if ((frm % 100) == 0) {
-        ESP_LOGD(T, "%d mV,  %d mA, %d cnt", g_mVolts, g_mAmps, g_wheelCnt);
-
         // we stopped, try to connect to wifi after 10s
         if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) &&
             wifi_state == WIFI_NOT_CONNECTED) {
