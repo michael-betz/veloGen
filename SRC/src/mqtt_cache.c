@@ -169,8 +169,8 @@ void cache_init() {
     mqtt_cfg.credentials.client_id = jGetS(s, "hostname", WIFI_HOST_NAME);
     mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
     mqtt_cfg.task.priority = 1;
-    // mqtt_cfg.network.reconnect_timeout_ms = 300;
-    mqtt_cfg.network.disable_auto_reconnect = true;
+    mqtt_cfg.network.reconnect_timeout_ms = 180000;
+    // mqtt_cfg.network.disable_auto_reconnect = true;
     ESP_LOGI(T, "Publishing to %s, %s", mqtt_cfg.broker.address.uri, mqtt_topic);
 
     mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
@@ -223,7 +223,7 @@ void cache_handle() {
 
     // collect a new data point
     t_datum datum;
-    datum.ts = time(NULL);  // TODO need higher resolution timestamps
+    datum.ts = time(NULL);
     datum.volts = g_mVolts;
     datum.amps = g_mAmps;
     datum.speed = (uint16_t)g_speed;  // [km/h * 10]
@@ -232,7 +232,10 @@ void cache_handle() {
     datum.longitude = g_gps_data.longitude;
     datum.latitude = g_gps_data.latitude;
     datum.altitude = g_gps_data.altitude;
-    datum.pos_dilution = g_gps_data.dop_p;
+    if (g_gps_data.valid)
+        datum.pos_dilution = g_gps_data.dop_p;
+    else
+        datum.pos_dilution = -g_gps_data.dop_p;
 
     handle_new_measurement(&datum);
 }

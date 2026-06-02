@@ -243,7 +243,7 @@ void velogen_loop() {
             ts_con += sleepTimeout;
         }
 
-        if ((curTs - ts_sleep) > sleepTimeout)
+        if (sleepTimeout > 0 && (curTs - ts_sleep) > sleepTimeout)
             velogen_sleep(false);
     }
 

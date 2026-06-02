@@ -19,11 +19,11 @@ static void sync_system_time_from_gps(const gps_t *gps) {
 
     struct tm timeinfo = {0};
 
-    // The header indicates year starts from 2000, typically stored as a full 4-digit year.
+    // NMEA parser starts from 2000
     // struct tm expects years since 1900.
-    timeinfo.tm_year = gps->date.year - 1900;
+    timeinfo.tm_year = gps->date.year + 100;
 
-    // The header indicates month starts from 1. struct tm expects 0-11.
+    // NMEA parser starts from 1. struct tm expects 0-11.
     timeinfo.tm_mon = gps->date.month - 1;
     timeinfo.tm_mday = gps->date.day;
 
@@ -38,47 +38,50 @@ static void sync_system_time_from_gps(const gps_t *gps) {
 
     time_t epoch_seconds = mktime(&timeinfo);
 
-    // Restore the previous timezone setting
-    if (old_tz) {
-        setenv("TZ", old_tz, 1);
-    } else {
-        unsetenv("TZ");
-    }
-    tzset();
+    if (epoch_seconds != -1) {
+        struct timeval tv;
+        tv.tv_sec = epoch_seconds;
+        tv.tv_usec = gps->tim.thousand * 1000;
 
-    if (epoch_seconds == -1) {
+        if (settimeofday(&tv, NULL) == 0)
+            ESP_LOGD(T, "epoch_seconds: %lld", (long long)epoch_seconds);
+        else
+            ESP_LOGE(T, "Failed to set system time.");
+
+    } else {
         ESP_LOGE(T, "Failed to convert GPS time to epoch.");
-        return;
     }
 
-    struct timeval tv;
-    tv.tv_sec = epoch_seconds;
-    // The 'thousand' field provides milliseconds, which we convert to microseconds
-    tv.tv_usec = gps->tim.thousand * 1000;
+    // Restore the previous timezone setting
+    if (old_tz)
+        setenv("TZ", old_tz, 1);
+    else
+        unsetenv("TZ");
 
-    if (settimeofday(&tv, NULL) == 0) {
-        ESP_LOGI(T, "System time synchronized via GPS.");
-    } else {
-        ESP_LOGE(T, "Failed to set system time.");
-    }
+    tzset();
 }
 
 static void gps_event_handler(void *event_handler_arg,
                               esp_event_base_t event_base,
                               int32_t event_id,
                               void *event_data) {
+    static int i = 0;
     gps_t *gps = NULL;
     switch (event_id) {
     case GPS_UPDATE:
         gps = (gps_t *)event_data;
         memcpy(&g_gps_data, gps, sizeof(gps_t));
 
-        if (gps->valid)
-            sync_system_time_from_gps(gps);
+        if (gps->valid) {
+            if ((i++ % 128) == 0)
+                sync_system_time_from_gps(gps);
+        } else {
+            i = 0;
+        }
 
         /* print information parsed from GPS statements */
         ESP_LOGD(T,
-                 "%2d/%2d, %d/%d/%d %2d:%2d:%2d, %.05f°N, %.05f°E, %.02f m, +- %.02f m",
+                 "%2d/%2d, %d/%d/%d %02d:%02d:%02d, %.05f°N, %.05f°E, %.02f m, +- %.02fh %.02fp",
                  gps->sats_in_use,
                  gps->sats_in_view,
                  gps->date.year + 2000,
@@ -90,6 +93,7 @@ static void gps_event_handler(void *event_handler_arg,
                  gps->latitude,
                  gps->longitude,
                  gps->altitude,
+                 gps->dop_h,
                  gps->dop_p);
         break;
     case GPS_UNKNOWN:
