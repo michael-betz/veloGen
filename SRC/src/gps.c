@@ -105,6 +105,10 @@ static void gps_event_handler(void *event_handler_arg,
 }
 
 void gps_init() {
+    gpio_deep_sleep_hold_dis();
+    gpio_hold_dis(P_GPS_RX);
+    gpio_reset_pin(P_GPS_RX);
+
     nmea_parser_config_t config = {.uart = {.uart_port = UART_NUM_1,
                                             .rx_pin = P_GPS_RX,
                                             .tx_pin = P_GPS_TX,
@@ -119,30 +123,47 @@ void gps_init() {
 }
 
 void gps_sleep() {
-    const uint8_t sleep_cmd[] = {0xB5,
-                                 0x62,
-                                 0x02,
-                                 0x41,
-                                 0x08,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x02,
-                                 0x00,
-                                 0x00,
-                                 0x00,
-                                 0x4D,
-                                 0x3B};
+    // const uint8_t sleep_cmd[] = {0xB5,
+    //                              0x62,
+    //                              0x02,
+    //                              0x41,
+    //                              0x08,
+    //                              0x00,
+    //                              0x00,
+    //                              0x00,
+    //                              0x00,
+    //                              0x00,
+    //                              0x02,
+    //                              0x00,
+    //                              0x00,
+    //                              0x00,
+    //                              0x4D,
+    //                              0x3B};
 
-    uart_write_bytes(UART_NUM_1, (const char *)sleep_cmd, sizeof(sleep_cmd));
-    ESP_LOGI(T, "GPS sleep command sent");
+    // uart_write_bytes(UART_NUM_1, (const char *)sleep_cmd, sizeof(sleep_cmd));
+    // ESP_LOGI(T, "GPS sleep command sent");
+
+    // // Keep GPS UART RX pin high during sleep to prevent it from waking up
+    // gpio_reset_pin(P_GPS_RX);
+    // gpio_set_direction(P_GPS_RX, GPIO_MODE_OUTPUT);
+    // gpio_set_level(P_GPS_RX, 1);
+    // gpio_hold_en(P_GPS_RX);
+    // gpio_deep_sleep_hold_en();
+
+    gpio_set_direction(P_GPS_EN, GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_level(P_GPS_EN, 1);
+    gpio_hold_en(P_GPS_EN);
+    gpio_deep_sleep_hold_en();
 }
 
 void gps_wake() {
-    const char dummy_byte = 0xFF;
+    // const char dummy_byte = 0xFF;
 
-    uart_write_bytes(UART_NUM_1, &dummy_byte, 1);
-    ESP_LOGI(T, "GPS wake byte sent");
+    // uart_write_bytes(UART_NUM_1, &dummy_byte, 1);
+    // ESP_LOGI(T, "GPS wake byte sent");
+
+    gpio_deep_sleep_hold_dis();
+    gpio_hold_dis(P_GPS_EN);
+    gpio_set_direction(P_GPS_EN, GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_level(P_GPS_EN, 0);
 }

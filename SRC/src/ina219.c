@@ -15,7 +15,7 @@ static uint16_t inaCfg = 0;
 
 static void w(uint8_t reg, uint16_t val) {
     const uint8_t buf[3] = {reg, val >> 8, val & 0xFF};
-    esp_err_t ret = i2c_master_transmit(dev_handle, buf, 3, 100);
+    esp_err_t ret = i2c_master_transmit(dev_handle, buf, 3, -1);
     if (ret != ESP_OK)
         ESP_LOGE(T, "w failed %x", ret);
 }
@@ -32,7 +32,7 @@ static void setcfg(unsigned shift, unsigned n_bits, unsigned val) {
 static uint16_t rui(uint8_t reg) {
     uint8_t rbuf[2] = {0};
 
-    esp_err_t ret = i2c_master_transmit_receive(dev_handle, &reg, 1, rbuf, 2, 100);
+    esp_err_t ret = i2c_master_transmit_receive(dev_handle, &reg, 1, rbuf, 2, -1);
     if (ret != ESP_OK)
         ESP_LOGE(T, "rui failed %x", ret);
 
@@ -60,6 +60,7 @@ void inaInit() {
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
         .flags.allow_pd = false,
+        .intr_priority = 2,
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
 

@@ -139,21 +139,14 @@ unsigned counter_read() {
 }
 
 void velogen_sleep(bool isReboot) {
+    cache_close();
     ws2812_off();
-    wifiDisconnect();
 
     if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY) == pdTRUE)
         if (record_file)
             fclose(record_file);
 
     gps_sleep();
-
-    // Keep GPS UART RX pin high during sleep to prevent it from waking up
-    gpio_reset_pin(P_GPS_RX);
-    gpio_set_direction(P_GPS_RX, GPIO_MODE_OUTPUT);
-    gpio_set_level(P_GPS_RX, 1);
-    gpio_hold_en(P_GPS_RX);
-    gpio_deep_sleep_hold_en();
 
     if (isReboot) {
         log_e("calling esp_restart()");
@@ -167,8 +160,11 @@ void velogen_sleep(bool isReboot) {
     // enable wheel pulse as wakeup source
     esp_sleep_enable_ext1_wakeup((1 << P_AC), ESP_EXT1_WAKEUP_ANY_HIGH);
     // esp_sleep_enable_ext1_wakeup((1 << P_BOOT0), ESP_EXT1_WAKEUP_ALL_LOW);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    wifiDisconnect();
+    vTaskDelay(250 / portTICK_PERIOD_MS);
+
     esp_deep_sleep_start();  // ZzzZZZzzzZZ
 }
 
@@ -179,7 +175,6 @@ void velogen_init() {
     gpio_set_direction(P_AC, GPIO_MODE_INPUT);
     gpio_set_direction(P_BOOT0, GPIO_MODE_INPUT);
     gpio_set_pull_mode(P_BOOT0, GPIO_PULLUP_ONLY);
-
     setAuxPower(1);
 
     counter_init();

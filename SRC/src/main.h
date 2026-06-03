@@ -20,6 +20,7 @@
 #define P_EN2 GPIO_NUM_36      // Empty
 #define P_GPS_TX GPIO_NUM_22   // UBLOX NEO 6M
 #define P_GPS_RX GPIO_NUM_23
+#define P_GPS_EN GPIO_NUM_21 // PNP controlling GPS power
 
 #define CYCLE_MS 50
 #define N_LEDS 6  // 17           // Length of the LED strip

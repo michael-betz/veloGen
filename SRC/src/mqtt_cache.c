@@ -1,3 +1,4 @@
+#include "mqtt_cache.h"
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -156,10 +157,7 @@ void cache_init() {
         telemetry_mutex = xSemaphoreCreateMutex();
     if (ack_sem == NULL)
         ack_sem = xSemaphoreCreateBinary();
-    if (mqtt_c != NULL) {
-        esp_mqtt_client_destroy(mqtt_c);
-        mqtt_c = NULL;
-    }
+    cache_close();
 
     cJSON *s = getSettings();
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
@@ -174,7 +172,7 @@ void cache_init() {
     mqtt_cfg.task.priority = 1;
     mqtt_cfg.network.reconnect_timeout_ms = 180000;
     // mqtt_cfg.network.disable_auto_reconnect = true;
-    ESP_LOGI(T, "Publishing to %s, %s", mqtt_cfg.broker.address.uri, mqtt_topic);
+    ESP_LOGI(T, "Publishing to topic %s", mqtt_topic);
 
     mqtt_c = esp_mqtt_client_init(&mqtt_cfg);
     if (!mqtt_c) {
@@ -188,6 +186,13 @@ void cache_init() {
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
 
     esp_mqtt_client_start(mqtt_c);
+}
+
+void cache_close() {
+    if (mqtt_c != NULL) {
+        esp_mqtt_client_destroy(mqtt_c);
+        mqtt_c = NULL;
+    }
 }
 
 void mqtt_reconnect() { esp_mqtt_client_reconnect(mqtt_c); }

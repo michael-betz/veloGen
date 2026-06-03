@@ -53,7 +53,7 @@ ota_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void
             break;
         case ESP_HTTPS_OTA_WRITE_FLASH:
             ota_n_written = *(int *)event_data;
-            ESP_LOGD(T, "Writing to flash: %d written", ota_n_written);
+            // ESP_LOGD(T, "Writing to flash: %d written", ota_n_written);
             break;
         case ESP_HTTPS_OTA_UPDATE_BOOT_PARTITION:
             ESP_LOGI(T,
@@ -111,8 +111,6 @@ void app_main() {
     set_settings_file(F_PREFIX "/settings.json", F_PREFIX "/default_settings.json");
     init_log_levels();
 
-    E(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, &ota_event_handler, NULL));
-
     velogen_init();
     TickType_t xLastWakeTime = xTaskGetTickCount();
     while (true) {
@@ -142,6 +140,9 @@ static void ota_task(void *pvParameters) {
         .max_http_request_size = 0,
 
     };
+
+    E(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, &ota_event_handler, NULL));
+
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK) {
         log_i("OTA success. Restarting!");
