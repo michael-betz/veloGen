@@ -84,6 +84,14 @@ static void ani2(int tick) {
         led_strip_set_pixel_hsv(led_strip, i, i * 20 + tick, 0xFF, ws2812_intensity);
 }
 
+static void ani_ota() {
+    // Switch LEDs for every 80 kB written. 2 cycles for a firmware update.
+    int cur_led = (ota_n_written / 1024 / 80) % N_LEDS;
+
+    for (int i = 0; i < N_LEDS; i++)
+        led_strip_set_pixel(led_strip, i, 0, 0, (cur_led == i) ? 0x88 : 0);
+}
+
 static int indicate_ticks = 0;
 static unsigned indicate_color = 0;
 
@@ -98,6 +106,8 @@ void ws2812_animate() {
     // TODO: better battery protection (shunt R maybe?)
     if (g_mVolts > 8400) {
         ws2812_white();
+    } else if (ota_n_written >= 0) {
+        ani_ota();
     } else if (indicate_ticks > 0) {
         if ((tick >> 4) & 1)
             for (int i = 0; i < N_LEDS; i++)

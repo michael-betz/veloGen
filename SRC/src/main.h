@@ -25,3 +25,6 @@
 #define N_LEDS 6  // 17           // Length of the LED strip
 
 #define F_PREFIX "/lfs"
+
+// I think it's in [bytes] -1 if no update is in progress.
+extern int ota_n_written;

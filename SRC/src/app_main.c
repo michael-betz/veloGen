@@ -2,6 +2,9 @@
 // * shutdown state machine (look for wifi, try upload)
 // * OTA: load firmware from github release
 
+#include "esp_crt_bundle.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
@@ -14,22 +17,59 @@
 #include "main.h"
 #include "mqtt_cache.h"
 #include "velo.h"
+#include "wifi.h"
 #include "ws_logger.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <time.h>
 
 static const char *T = "MAIN";
 
-static void velo_task(void *args) {
-    velogen_init();
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    while (true) {
-        velogen_loop();
+int ota_n_written = -1;
 
-        // Run with a fixed 20 Hz cycle rate
-        vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
+/* Event handler for catching system events */
+static void
+ota_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    if (event_base == ESP_HTTPS_OTA_EVENT) {
+        switch (event_id) {
+        case ESP_HTTPS_OTA_START:
+            ESP_LOGI(T, "OTA started");
+            ota_n_written = 0;
+            break;
+        case ESP_HTTPS_OTA_CONNECTED:
+            ESP_LOGI(T, "Connected to server");
+            break;
+        case ESP_HTTPS_OTA_GET_IMG_DESC:
+            ESP_LOGI(T, "Reading Image Description");
+            break;
+        case ESP_HTTPS_OTA_VERIFY_CHIP_ID:
+            ESP_LOGI(T, "Verifying chip id of new image: %d", *(esp_chip_id_t *)event_data);
+            break;
+        case ESP_HTTPS_OTA_VERIFY_CHIP_REVISION:
+            ESP_LOGI(T, "Verifying chip revision of new image: %d", *(esp_chip_id_t *)event_data);
+            break;
+        case ESP_HTTPS_OTA_DECRYPT_CB:
+            ESP_LOGI(T, "Callback to decrypt function");
+            break;
+        case ESP_HTTPS_OTA_WRITE_FLASH:
+            ota_n_written = *(int *)event_data;
+            ESP_LOGD(T, "Writing to flash: %d written", ota_n_written);
+            break;
+        case ESP_HTTPS_OTA_UPDATE_BOOT_PARTITION:
+            ESP_LOGI(T,
+                     "Boot partition updated. Next Partition: %d",
+                     *(esp_partition_subtype_t *)event_data);
+            break;
+        case ESP_HTTPS_OTA_FINISH:
+            ESP_LOGI(T, "OTA finish");
+            ota_n_written = -1;
+            break;
+        case ESP_HTTPS_OTA_ABORT:
+            ESP_LOGI(T, "OTA abort");
+            ota_n_written = -1;
+            break;
+        }
     }
-    vTaskDelete(NULL);
 }
 
 void app_main() {
@@ -71,7 +111,49 @@ void app_main() {
     set_settings_file(F_PREFIX "/settings.json", F_PREFIX "/default_settings.json");
     init_log_levels();
 
-    velo_task(NULL);
+    E(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, &ota_event_handler, NULL));
+
+    velogen_init();
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    while (true) {
+        velogen_loop();
+
+        // Run with a fixed 20 Hz cycle rate
+        vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
+    }
+    vTaskDelete(NULL);
+}
+
+static atomic_flag ota_in_progress = ATOMIC_FLAG_INIT;
+
+static void ota_task(void *pvParameters) {
+    const char *ota_url = jGetS(getSettings(), "ota_url", NULL);
+    if ((wifi_state != WIFI_CONNECTED && wifi_state != WIFI_AP_MODE) || ota_url == NULL)
+        goto ota_exit;
+
+    log_w("Pulling OTA update from: %s", ota_url);
+    esp_http_client_config_t hconfig = {.url = ota_url,
+                                        .skip_cert_common_name_check = true,
+                                        .crt_bundle_attach = esp_crt_bundle_attach};
+    esp_https_ota_config_t config = {
+        .http_config = &hconfig,
+        .bulk_flash_erase = true,
+        .partial_http_download = true,
+        .max_http_request_size = 0,
+
+    };
+    esp_err_t ret = esp_https_ota(&config);
+    if (ret == ESP_OK) {
+        log_i("OTA success. Restarting!");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        esp_restart();
+    } else {
+        log_e("OTA failed: %d", ret);
+    }
+
+ota_exit:
+    atomic_flag_clear(&ota_in_progress);
+    vTaskDelete(NULL);
 }
 
 esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
@@ -119,7 +201,8 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
 
     // trigger esp_https_ota()
     case 'u':
-        run_ota_update = true;
+        if (!atomic_flag_test_and_set(&ota_in_progress))
+            xTaskCreate(ota_task, "ota", 4096, NULL, 5, NULL);
         break;
 
     // Report status and heap usage
