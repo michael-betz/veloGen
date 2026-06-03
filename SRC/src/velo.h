@@ -10,6 +10,7 @@ extern unsigned g_wheelCnt;  // accumulated wheel pulses since power up
 extern int g_speed;          // current speed [km * 10 / h]
 extern int g_mVolts;         // battery voltage [mV]
 extern int g_mAmps;          // battery current, [mA] negative = discharging
+extern bool run_ota_update;
 
 // initalize velogen hardware
 void velogen_init();

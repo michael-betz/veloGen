@@ -2,6 +2,9 @@
 #include "velo.h"
 #include "driver/gpio.h"
 #include "driver/pulse_cnt.h"
+#include "esp_crt_bundle.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
@@ -203,6 +206,8 @@ void velogen_init() {
     ws2812_init();
 }
 
+bool run_ota_update = false;
+
 // main loop, called precisely every 50 ms
 void velogen_loop() {
     static int frm = 0;
@@ -245,6 +250,28 @@ void velogen_loop() {
 
         if (sleepTimeout > 0 && (curTs - ts_sleep) > sleepTimeout)
             velogen_sleep(false);
+    }
+
+    if ((wifi_state == WIFI_CONNECTED || wifi_state == WIFI_AP_MODE) && run_ota_update) {
+        const char *ota_url = jGetS(getSettings(), "ota_url", "");
+        log_w("Pulling OTA update from: %s", ota_url);
+
+        esp_http_client_config_t hconfig = {.url = ota_url,
+                                            .skip_cert_common_name_check = true,
+                                            .crt_bundle_attach = esp_crt_bundle_attach};
+        esp_https_ota_config_t config = {
+            .http_config = &hconfig,
+            .bulk_flash_erase = true,
+            .partial_http_download = true,
+            .max_http_request_size = 0,
+
+        };
+        esp_err_t ret = esp_https_ota(&config);
+        if (ret == ESP_OK)
+            esp_restart();
+        else
+            log_e("OTA failed: %d", ret);
+        run_ota_update = false;
     }
 
     // 20 Hz max.

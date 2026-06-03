@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 #include "json_settings.h"
 #include "main.h"
+#include "mqtt_cache.h"
 #include "velo.h"
 #include "ws_logger.h"
 #include <stdio.h>
@@ -105,6 +106,7 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
         if (len > 1) {
             // Some parameters can be updated without a reboot
             init_log_levels();
+            cache_init();
         }
         break;
 
@@ -113,6 +115,11 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
         esp_wifi_disconnect();
         vTaskDelay(pdMS_TO_TICKS(100));
         esp_restart();
+        break;
+
+    // trigger esp_https_ota()
+    case 'u':
+        run_ota_update = true;
         break;
 
     // Report status and heap usage

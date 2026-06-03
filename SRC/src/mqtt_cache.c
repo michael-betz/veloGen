@@ -151,13 +151,16 @@ cb_mqtt_discon(void *handler_args, esp_event_base_t base, int32_t event_id, void
     atomic_store(&mqtt_connected, false);
 }
 
-static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    esp_mqtt_client_reconnect(mqtt_c);
-}
-
 void cache_init() {
-    telemetry_mutex = xSemaphoreCreateMutex();
-    ack_sem = xSemaphoreCreateBinary();
+    if (telemetry_mutex == NULL)
+        telemetry_mutex = xSemaphoreCreateMutex();
+    if (ack_sem == NULL)
+        ack_sem = xSemaphoreCreateBinary();
+    if (mqtt_c != NULL) {
+        esp_mqtt_client_destroy(mqtt_c);
+        mqtt_c = NULL;
+    }
+
     cJSON *s = getSettings();
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
     mqtt_topic = jGetS(s, "mqtt_topic", "velogen/raw");
@@ -183,10 +186,11 @@ void cache_init() {
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_CONNECTED, cb_mqtt_con, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_DISCONNECTED, cb_mqtt_discon, NULL));
     E(esp_mqtt_client_register_event(mqtt_c, MQTT_EVENT_PUBLISHED, cb_mqtt_pub, mqtt_c));
-    E(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &got_ip, NULL));
 
     esp_mqtt_client_start(mqtt_c);
 }
+
+void mqtt_reconnect() { esp_mqtt_client_reconnect(mqtt_c); }
 
 static void save_telemetry_offline(const t_datum *datum) {
     if (record_file == NULL) {

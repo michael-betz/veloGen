@@ -7,6 +7,7 @@
 #include "freertos/task.h"
 #include "json_settings.h"
 #include "mdns.h"
+#include "mqtt_cache.h"
 #include "nvs_flash.h"
 #include "portmacro.h"
 #include "ws2812.h"
@@ -86,7 +87,8 @@ static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, voi
     ESP_LOGI(T, "Got ip " IPSTR, IP2STR(&event->ip_info.ip));
     wifi_retry_count = 0;
     wifi_state = WIFI_CONNECTED;
-    ws2812_indicate(20 * 10, 0x0000FF00);  // wifi connected = green blink
+    ws2812_indicate(20 * 5, 0x0000FF00);  // wifi connected = green blink
+    mqtt_reconnect();
 }
 
 static void got_discon(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {

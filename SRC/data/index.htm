@@ -53,6 +53,7 @@
         <button class="secondary" id="bnVerify" onclick="prettyPrint();">Verify</button>
         <button class="secondary" id="bnApply" onclick="writeFile();">Apply</button>
         <button class="secondary" onclick="websocket.send('r'); textArea.value = ''; window.location.reload(false);">Reboot</button>
+        <button class="secondary" onclick="websocket.send('u');">OTA!</button>
       </div>
     </main>
 
