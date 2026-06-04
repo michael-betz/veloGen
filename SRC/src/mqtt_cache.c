@@ -23,15 +23,15 @@ static const char *T = "MQTT_CACHE";
 
 // format of one measurement
 typedef struct {
-    uint32_t ts;
     uint16_t volts;
-    int16_t amps;
     uint16_t speed;
+    int16_t amps;
+    int16_t pos_dilution;
+    uint32_t ts;
     uint32_t cnt;
     float latitude;
     float longitude;
     float altitude;
-    float pos_dilution;
 } t_datum;
 #define BLOCK_SIZE sizeof(t_datum)
 
@@ -250,9 +250,9 @@ void cache_handle() {
     datum.latitude = g_gps_data.latitude;
     datum.altitude = g_gps_data.altitude;
     if (g_gps_data.valid)
-        datum.pos_dilution = g_gps_data.dop_p;
+        datum.pos_dilution = g_gps_data.dop_p * 100;
     else
-        datum.pos_dilution = -g_gps_data.dop_p;
+        datum.pos_dilution = -g_gps_data.dop_p * 100;
 
     ESP_LOGD(T, "%d mV,  %d mA, %d cnt", datum.volts, datum.amps, datum.cnt);
     handle_new_measurement(&datum);

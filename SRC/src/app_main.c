@@ -138,7 +138,6 @@ static void ota_task(void *pvParameters) {
         .bulk_flash_erase = true,
         .partial_http_download = true,
         .max_http_request_size = 0,
-
     };
 
     E(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, &ota_event_handler, NULL));
@@ -207,7 +206,7 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
     // trigger esp_https_ota()
     case 'u':
         if (!atomic_flag_test_and_set(&ota_in_progress))
-            xTaskCreate(ota_task, "ota", 4096, NULL, 5, NULL);
+            xTaskCreate(ota_task, "ota", 4096, NULL, 0, NULL);
         break;
 
     // Report status and heap usage
