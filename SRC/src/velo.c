@@ -24,10 +24,10 @@
 
 static const char *T = "VELO";
 
-static unsigned sleepTimeout = 30000;
+unsigned g_sleepTimeout = 300000;
 
 // Number of wheel rotations since power up
-RTC_DATA_ATTR unsigned g_wheelCnt;
+RTC_NOINIT_ATTR unsigned g_wheelCnt;
 int g_mVolts = 0;
 int g_mAmps = 0;
 int g_speed = 0;  // [km * 10 / h]
@@ -179,15 +179,11 @@ void velogen_init() {
 
     counter_init();
 
-    cJSON *s = getSettings();
-
     // init shunt
     inaInit();
     inaBus32(false);
     inaPga(0);
     inaAvg(7);
-
-    sleepTimeout = jGetI(s, "sleep_timeout", 30) * 1000 / portTICK_PERIOD_MS;
 
     gps_init();
     initWifi();
@@ -235,10 +231,10 @@ void velogen_loop() {
             wifi_state == WIFI_NOT_CONNECTED) {
             tryJsonConnect();
             // don't try to re-connect in the next 5 minutes
-            ts_con += sleepTimeout;
+            ts_con += g_sleepTimeout;
         }
 
-        if (sleepTimeout > 0 && (curTs - ts_sleep) > sleepTimeout)
+        if (g_sleepTimeout > 0 && (curTs - ts_sleep) > g_sleepTimeout)
             velogen_sleep(false);
     }
 

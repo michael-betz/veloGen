@@ -87,7 +87,7 @@ static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, voi
     ESP_LOGI(T, "Got ip " IPSTR, IP2STR(&event->ip_info.ip));
     wifi_retry_count = 0;
     wifi_state = WIFI_CONNECTED;
-    ws2812_indicate(20 * 5, 0x0000FF00);  // wifi connected = green blink
+    ws2812_indicate(20 * 5, 0x00004400);  // wifi connected = green blink
     mqtt_reconnect();
 }
 
@@ -105,7 +105,7 @@ static void got_discon(void *arg, esp_event_base_t event_base, int32_t event_id,
         wifi_state = WIFI_SCANNING;
     } else {
         wifi_state = WIFI_NOT_CONNECTED;
-        ws2812_indicate(20 * 10, 0x000000FF);  // wifi disconnected = red blink
+        ws2812_indicate(20 * 5, 0x000000FF);  // wifi disconnected = red blink
     }
 }
 
@@ -218,7 +218,6 @@ void tryJsonConnect() {
     // fires SYSTEM_EVENT_SCAN_DONE when done, calls scan_done() ...
     wifi_retry_count = 0;
     wifi_state = WIFI_SCANNING;
-    ws2812_indicate(20 * 10, 0x00FF0000);  // scanning = blue blink
 }
 
 void tryApMode() {
@@ -226,7 +225,7 @@ void tryApMode() {
     E(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
     ESP_LOGI(T, "started AP mode. SSID: %s", WIFI_HOST_NAME);
     wifi_state = WIFI_AP_MODE;
-    ws2812_indicate(20 * 10, 0x0000FFFF);  // wifi AP = yellow blink
+    ws2812_indicate(20 * 30, 0x00004444);  // wifi AP = yellow blink
 }
 
 void tryEasyConnect() {

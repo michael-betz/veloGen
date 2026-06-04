@@ -89,7 +89,7 @@ static void ani_ota() {
     int cur_led = (ota_n_written / 1024 / 80) % N_LEDS;
 
     for (int i = 0; i < N_LEDS; i++)
-        led_strip_set_pixel(led_strip, i, 0, 0, (cur_led == i) ? 0x88 : 0);
+        led_strip_set_pixel(led_strip, i, 0, 0, (cur_led == i) ? 0x44 : 0);
 }
 
 static int indicate_ticks = 0;

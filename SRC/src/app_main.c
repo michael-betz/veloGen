@@ -190,6 +190,10 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
             // Some parameters can be updated without a reboot
             init_log_levels();
             cache_init();
+            cJSON *s = getSettings();
+            g_sleepTimeout = jGetI(s, "sleep_timeout", 300) * 1000 / portTICK_PERIOD_MS;
+            if (jGetB(s, "reset_wheel_cnt", false))
+                g_wheelCnt = 0;
         }
         break;
 
