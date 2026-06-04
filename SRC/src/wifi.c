@@ -1,6 +1,8 @@
 #include "wifi.h"
+#include "cJSON.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_sntp.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types_generic.h"
 #include "freertos/FreeRTOS.h"
@@ -88,6 +90,8 @@ static void got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, voi
     wifi_retry_count = 0;
     wifi_state = WIFI_CONNECTED;
     ws2812_indicate(20 * 5, 0x00004400);  // wifi connected = green blink
+
+    sntp_restart();
     mqtt_reconnect();
 }
 
@@ -185,7 +189,8 @@ void initWifi() {
     assert(ap_netif);
 
     // Init DNS and mDNS
-    const char *hostname = jGetS(getSettings(), "hostname", WIFI_HOST_NAME);
+    cJSON *s = getSettings();
+    const char *hostname = jGetS(s, "hostname", WIFI_HOST_NAME);
     E(esp_netif_set_hostname(sta_netif, hostname));
     E(mdns_init());
     E(mdns_hostname_set(hostname));
@@ -193,7 +198,7 @@ void initWifi() {
     E(mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0));
 
     // Set the timezone
-    const char *tz_str = jGetS(getSettings(), "timezone", "PST8PDT");
+    const char *tz_str = jGetS(s, "timezone", "PST8PDT");
     ESP_LOGI(T, "Setting timezone to TZ = %s", tz_str);
     setenv("TZ", tz_str, 1);
     tzset();
@@ -204,6 +209,17 @@ void initWifi() {
         l = sizeof(wifi_ap_config.ap.ssid);
     wifi_ap_config.ap.ssid_len = l;
     memcpy(wifi_ap_config.ap.ssid, hostname, l);
+
+    // Setup NTP
+    sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
+    sntp_set_sync_interval(jGetI(s, "ntp_interval_s", 60 * 60) * 1000);  // every hour [ms]
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+
+    // We need to copy this string, else it's invalid after the next setting reload
+    static char ntp_host[32] = {0};
+    strncpy(ntp_host, jGetS(s, "ntp_host", "pool.ntp.org"), sizeof(ntp_host) - 1);
+    esp_sntp_setservername(0, ntp_host);
+    esp_sntp_init();
 
     E(esp_wifi_set_mode(WIFI_MODE_STA));
     E(esp_wifi_start());

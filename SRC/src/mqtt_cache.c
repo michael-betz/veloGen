@@ -242,6 +242,9 @@ void cache_handle() {
     // collect a new data point
     t_datum datum;
     datum.ts = time(NULL);
+    // if RTC is not set, don't bother
+    if (datum.ts < 1780000000)
+        return;
     datum.volts = g_mVolts;
     datum.amps = g_mAmps;
     datum.speed = (uint16_t)g_speed;  // [km/h * 10]

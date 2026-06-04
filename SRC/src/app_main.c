@@ -206,7 +206,7 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
     // trigger esp_https_ota()
     case 'u':
         if (!atomic_flag_test_and_set(&ota_in_progress))
-            xTaskCreate(ota_task, "ota", 4096, NULL, 0, NULL);
+            xTaskCreate(ota_task, "ota", 4096, NULL, 1, NULL);
         break;
 
     // Report status and heap usage
