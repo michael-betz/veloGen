@@ -178,6 +178,7 @@ void velogen_init() {
     setAuxPower(1);
 
     counter_init();
+    g_sleepTimeout = jGetI(getSettings(), "sleep_timeout", 300) * 1000 / portTICK_PERIOD_MS;
 
     // init shunt
     inaInit();
@@ -200,8 +201,8 @@ void velogen_loop() {
     static bool button_ = false;
 
     int curTs = xTaskGetTickCount();
-    static int ts_sleep = 0;
-    static int ts_con =
+    static int ts_wheel_moved = 0;
+    static int ts_reconnect =
         300000 / portTICK_PERIOD_MS;  // last TS when wheel moved / wanted to connect
 
     bool button = !gpio_get_level(P_BOOT0);
@@ -221,20 +222,20 @@ void velogen_loop() {
 
     if (counter_read()) {
         // If wheel was moved
-        ts_sleep = curTs;
-        ts_con = curTs;
+        ts_wheel_moved = curTs;
+        ts_reconnect = curTs;
     }
 
     if ((frm % 100) == 0) {
         // we stopped, try to connect to wifi after 10s
-        if (((curTs - ts_con) > (10000 / (int)portTICK_PERIOD_MS)) &&
+        if (((curTs - ts_reconnect) > (10000 / (int)portTICK_PERIOD_MS)) &&
             wifi_state == WIFI_NOT_CONNECTED) {
             tryJsonConnect();
             // don't try to re-connect in the next 5 minutes
-            ts_con += g_sleepTimeout;
+            ts_reconnect += g_sleepTimeout;
         }
 
-        if (g_sleepTimeout > 0 && (curTs - ts_sleep) > g_sleepTimeout)
+        if (g_sleepTimeout > 0 && (curTs - ts_wheel_moved) > g_sleepTimeout)
             velogen_sleep(false);
     }
 
