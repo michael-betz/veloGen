@@ -6,7 +6,6 @@
     "meas_ticks": 20,
     "ota_url": "https://ota_host:8000/firmware.bin",
     "mqtt_url": "mqtts://user:password@mqtt.eclipse.org",
-    "mqtt_topic": "velogen/raw",
     "strip_intensity": 100,
     "sparkle": 61440,
     "wifis": {

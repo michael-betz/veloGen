@@ -81,7 +81,7 @@ static void gps_event_handler(void *event_handler_arg,
 
         /* print information parsed from GPS statements */
         ESP_LOGD(T,
-                 "%2d/%2d, %d/%d/%d %02d:%02d:%02d, %.05f°N, %.05f°E, %.02f m, +- %.02fh %.02fp",
+                 "%2d/%2d, %d/%d/%d %02d:%02d:%02d, %.05f°N, %.05f°E, %.02f m, +- %.02f",
                  gps->sats_in_use,
                  gps->sats_in_view,
                  gps->date.year + 2000,
@@ -93,7 +93,6 @@ static void gps_event_handler(void *event_handler_arg,
                  gps->latitude,
                  gps->longitude,
                  gps->altitude,
-                 gps->dop_h,
                  gps->dop_p);
         break;
     case GPS_UNKNOWN:
@@ -123,33 +122,7 @@ void gps_init() {
 }
 
 void gps_sleep() {
-    // const uint8_t sleep_cmd[] = {0xB5,
-    //                              0x62,
-    //                              0x02,
-    //                              0x41,
-    //                              0x08,
-    //                              0x00,
-    //                              0x00,
-    //                              0x00,
-    //                              0x00,
-    //                              0x00,
-    //                              0x02,
-    //                              0x00,
-    //                              0x00,
-    //                              0x00,
-    //                              0x4D,
-    //                              0x3B};
-
-    // uart_write_bytes(UART_NUM_1, (const char *)sleep_cmd, sizeof(sleep_cmd));
-    // ESP_LOGI(T, "GPS sleep command sent");
-
-    // // Keep GPS UART RX pin high during sleep to prevent it from waking up
-    // gpio_reset_pin(P_GPS_RX);
-    // gpio_set_direction(P_GPS_RX, GPIO_MODE_OUTPUT);
-    // gpio_set_level(P_GPS_RX, 1);
-    // gpio_hold_en(P_GPS_RX);
-    // gpio_deep_sleep_hold_en();
-
+    ESP_LOGI(T, "Powering down GPS module");
     gpio_set_direction(P_GPS_EN, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_level(P_GPS_EN, 1);
     gpio_hold_en(P_GPS_EN);
@@ -157,11 +130,7 @@ void gps_sleep() {
 }
 
 void gps_wake() {
-    // const char dummy_byte = 0xFF;
-
-    // uart_write_bytes(UART_NUM_1, &dummy_byte, 1);
-    // ESP_LOGI(T, "GPS wake byte sent");
-
+    ESP_LOGI(T, "Powering up GPS module");
     gpio_deep_sleep_hold_dis();
     gpio_hold_dis(P_GPS_EN);
     gpio_set_direction(P_GPS_EN, GPIO_MODE_INPUT_OUTPUT);

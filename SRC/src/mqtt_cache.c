@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <time.h>
 
 static const char *T = "MQTT_CACHE";
 
@@ -33,6 +34,9 @@ typedef struct {
     float pos_dilution;
 } t_datum;
 #define BLOCK_SIZE sizeof(t_datum)
+
+// %s is replaced by the hostname, which must be unique!
+#define MQTT_TOPIC "devices/velogen/%s"
 
 #define FILE_PATH (F_PREFIX "/telemetry.bin")
 #define FILE_SEND_PATH (F_PREFIX "/sending.bin")
@@ -51,7 +55,7 @@ static atomic_int pending_ack_id = ATOMIC_VAR_INIT(-1);
 
 // initialized from .json
 static bool is_cache_enabled = false;
-static const char *mqtt_topic = NULL;
+static char mqtt_topic[64];
 static int meas_ticks = 1;
 
 static void transmit_backlog_task(void *pvParameters) {
@@ -102,7 +106,7 @@ static void transmit_backlog_task(void *pvParameters) {
 
             if (msg_id >= 0) {
                 atomic_store(&pending_ack_id, msg_id);
-                if (xSemaphoreTake(ack_sem, pdMS_TO_TICKS(30000)) != pdTRUE) {
+                if (xSemaphoreTake(ack_sem, pdMS_TO_TICKS(120000)) != pdTRUE) {
                     ESP_LOGE(T, "Timeout waiting for MQTT ACK. Halting.");
                     transmission_success = false;
                     break;
@@ -161,8 +165,15 @@ void cache_init() {
 
     cJSON *s = getSettings();
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
-    mqtt_topic = jGetS(s, "mqtt_topic", "velogen/raw");
     is_cache_enabled = jGetB(s, "mqtt_cache_enabled", false);
+
+    // append hostname to mqtt_topic
+    const char *hostname = jGetS(getSettings(), "hostname", WIFI_HOST_NAME);
+    int ret = snprintf(mqtt_topic, sizeof(mqtt_topic), MQTT_TOPIC, hostname);
+    if (ret >= sizeof(mqtt_topic)) {
+        ESP_LOGE(T, "hostname doesn't fit in mqtt_topic");
+        return;
+    }
 
     // MQTT client
     esp_mqtt_client_config_t mqtt_cfg = {0};
@@ -228,8 +239,6 @@ void cache_handle() {
     if (!(meas_ticks > 0 && (seq++ % meas_ticks) == 0))
         return;
 
-    ESP_LOGD(T, "%d mV,  %d mA, %d cnt", g_mVolts, g_mAmps, g_wheelCnt);
-
     // collect a new data point
     t_datum datum;
     datum.ts = time(NULL);
@@ -237,7 +246,6 @@ void cache_handle() {
     datum.amps = g_mAmps;
     datum.speed = (uint16_t)g_speed;  // [km/h * 10]
     datum.cnt = g_wheelCnt;
-    // GPS data
     datum.longitude = g_gps_data.longitude;
     datum.latitude = g_gps_data.latitude;
     datum.altitude = g_gps_data.altitude;
@@ -246,5 +254,6 @@ void cache_handle() {
     else
         datum.pos_dilution = -g_gps_data.dop_p;
 
+    ESP_LOGD(T, "%d mV,  %d mA, %d cnt", datum.volts, datum.amps, datum.cnt);
     handle_new_measurement(&datum);
 }
