@@ -26,9 +26,9 @@ typedef struct {
     uint16_t volts;
     uint16_t speed;
     int16_t amps;
+    int16_t diff_cnt;
     int16_t pos_dilution;
     uint32_t ts;
-    uint32_t cnt;
     float latitude;
     float longitude;
     float altitude;
@@ -49,7 +49,7 @@ FILE *record_file = NULL;
 SemaphoreHandle_t telemetry_mutex = NULL;
 static esp_mqtt_client_handle_t mqtt_c = NULL;
 static SemaphoreHandle_t ack_sem = NULL;
-
+static int wheelCntLast = 0;
 static atomic_bool mqtt_connected = ATOMIC_VAR_INIT(false);
 static atomic_int pending_ack_id = ATOMIC_VAR_INIT(-1);
 
@@ -162,6 +162,7 @@ void cache_init() {
     if (ack_sem == NULL)
         ack_sem = xSemaphoreCreateBinary();
     cache_close();
+    wheelCntLast = g_wheelCnt;
 
     cJSON *s = getSettings();
     meas_ticks = jGetI(s, "meas_ticks", 20);  // 0 = off, otherwise [.05 s]
@@ -248,7 +249,11 @@ void cache_handle() {
     datum.volts = g_mVolts;
     datum.amps = g_mAmps;
     datum.speed = (uint16_t)g_speed;  // [km/h * 10]
-    datum.cnt = g_wheelCnt;
+
+    // datum.cnt = g_wheelCnt;
+    datum.diff_cnt = g_wheelCnt - wheelCntLast;
+    wheelCntLast = g_wheelCnt;
+
     datum.longitude = g_gps_data.longitude;
     datum.latitude = g_gps_data.latitude;
     datum.altitude = g_gps_data.altitude;
@@ -257,6 +262,6 @@ void cache_handle() {
     else
         datum.pos_dilution = -g_gps_data.dop_p * 100;
 
-    ESP_LOGD(T, "%d mV,  %d mA, %d cnt", datum.volts, datum.amps, datum.cnt);
+    ESP_LOGD(T, "%d mV,  %d mA, %d cnt", datum.volts, datum.amps, g_wheelCnt);
     handle_new_measurement(&datum);
 }
