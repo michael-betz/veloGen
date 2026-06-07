@@ -13,6 +13,7 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "gps.h"
 #include "json_settings.h"
 #include "main.h"
 #include "mqtt_cache.h"
@@ -193,6 +194,7 @@ esp_err_t ws_callback(httpd_req_t *req, httpd_ws_frame_t *wsf) {
             g_sleepTimeout = jGetI(s, "sleep_timeout", 300) * 1000 / portTICK_PERIOD_MS;
             if (jGetB(s, "reset_wheel_cnt", false))
                 g_wheelCnt = 0;
+            gps_init_from_json();
         }
         break;
 

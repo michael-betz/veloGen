@@ -1,5 +1,6 @@
 // #include "mqtt_client.h"
 #include "velo.h"
+#include "cJSON.h"
 #include "driver/gpio.h"
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
@@ -178,7 +179,8 @@ void velogen_init() {
     setAuxPower(1);
 
     counter_init();
-    g_sleepTimeout = jGetI(getSettings(), "sleep_timeout", 300) * 1000 / portTICK_PERIOD_MS;
+    cJSON *s = getSettings();
+    g_sleepTimeout = jGetI(s, "sleep_timeout", 300) * 1000 / portTICK_PERIOD_MS;
 
     // init shunt
     inaInit();
@@ -186,10 +188,11 @@ void velogen_init() {
     inaPga(0);
     inaAvg(7);
 
-    gps_init();
     initWifi();
     startWebServer();
     cache_init();  // open / create telemetry cache file and mqtt client
+
+    gps_init_from_json();
 
     // init led strip last, so power can stabilize
     ws2812_init();
